@@ -1,0 +1,5 @@
+build
+
+images
+src/version.h
+po/POTFILES.in.test
