@@ -18,35 +18,27 @@
 #ifndef MEDIAPLAYER_CONTROL_PANEL_H
 #define MEDIAPLAYER_CONTROL_PANEL_H
 
+// The dialog form created by wxFormBuilder
 #include "mediaplayer_dialogbase.h"
-// for context menu
+
+// For context menu
 #include <wx/menu.h>
-// for splitting relative paths
-#include <wx/tokenzr.h>
-// not sure where an unordered map is used
-#include <unordered_map>
-// for navigation
-#include <deque>
-// To determine relative paths
+
+
+// Was thinking of using relative paths for navigation
 #if (defined (__APPLE__) && defined (__MACH__))
 #include <experimental/filesystem>
 #else
 #include <filesystem>
 #endif
-//namespace fs = std::filesystem;
 
-extern bool mediaPlayerControlPanelVisible;
-extern bool isMuted;
-extern bool isOn;
-extern bool isPlaying;
-extern double frequency;
-extern wxString mediaSource;
 
+// The dialog events
 extern const wxEventType wxEVT_MEDIAPLAYER_DIALOG_EVENT;
 extern const int MEDIAPLAYER_ON;
 extern const int MEDIAPLAYER_MUTE;
-extern const int MEDIAPLAYER_NEXT;
-extern const int MEDIAPLAYER_PREVIOUS;
+extern const int MEDIAPLAYER_NEXT_TRACK;
+extern const int MEDIAPLAYER_PREVIOUS_TRACK;
 extern const int MEDIAPLAYER_PAUSE;
 extern const int MEDIAPLAYER_ZONE0;
 extern const int MEDIAPLAYER_ZONE1;
@@ -55,53 +47,45 @@ extern const int MEDIAPLAYER_BASS;
 extern const int MEDIAPLAYER_MIDRANGE;
 extern const int MEDIAPLAYER_TREBLE;
 extern const int MEDIAPLAYER_BALANCE;
-extern const int MEDIAPLAYER_NEXT_FOLDER;
-extern const int MEDIAPLAYER_PREVIOUS_FOLDER;
-extern const int MEDIAPLAYER_CURRENT_FOLDER;
 extern const int MEDIAPLAYER_FILE_PLAY;
 extern const int MEDIAPLAYER_SHUFFLE;
 extern const int MEDIAPLAYER_REPEAT;
+extern const int MEDIAPLAYER_NEXT_FOLDER;
+extern const int MEDIAPLAYER_PREVIOUS_FOLDER;
+extern const int MEDIAPLAYER_CURRENT_FOLDER;
+extern const int MEDIAPLAYER_LIST_DEVICE;
+extern const int MEDIAPLAYER_LIST_ROOT;
 extern const int MEDIAPLAYER_LIST_CURRENT;
 extern const int MEDIAPLAYER_LIST_PARENT;
 extern const int MEDIAPLAYER_LIST_CHILD;
+extern const int MEDIAPLAYER_SELECT_PRESET;
+extern const int MEDIAPLAYER_DELETE_PRESET;
 
-#define ID_MENU_ITEM_PLAY 100
-
-// A queue to handle navigation through albums and tracks
-// Essentailly make the navigation operations synchronous
-struct MediaNavigationStep {
-	enum Direction {
-		Up,
-		Down
-	};
-
-	Direction direction;
-	int itemId;
-};
-
-std::deque<MediaNavigationStep> navigationSteps;
-bool navigationInProgress = false;
 
 // The different folder types returned by the Fusion Media Player
-typedef enum folderType {
-	VIRTUALFOLDER = 0x49,
+// Wonder if there is a folder type for iPods ?
+enum MEDIA_FILE_TYPE {
+	VIRTUALFOLDER = 0x49, // & 0x40
 	DEVICEFOLDER = 0x41,
 	MTPFOLDER = 0x47,
 	PHYSICALFOLDER = 0x4F,
-	MUSICTRACK = 0x1F
-} MEDIA_FILE_TYPE;
+	MUSICTRACK = 0x1F, // & 0x10
+	MTPTRACK = 0x17, //
+	// I'm using this to differentatiate radio stations
+	RADIO = 0xFF
+};
 
-// Client data used for list box items representing music folders & tracks
+// Metadata used for list box items representing music folders, tracks or radio presets
 class MediaFileItem : public wxClientData {
 public:
-	MediaFileItem(int id, int type, int level);
+	MediaFileItem(const int id, const MEDIA_FILE_TYPE type, const int level);
 	~MediaFileItem();
-	int GetMediaType();
+	MEDIA_FILE_TYPE GetMediaType();
 	int GetId();
 	int GetLevel();
 
 private:
-	int itemType;
+	MEDIA_FILE_TYPE itemType;
 	int itemId;
 	int itemLevel;
 };
@@ -109,54 +93,57 @@ private:
 class MediaPlayerDialog : public MediaPlayerDialogBase
 {
 	protected:
-		void OnSourceChanged( wxCommandEvent& event );
-		void OnZone0VolumeChanged( wxCommandEvent& event );
-		void OnZone1VolumeChanged( wxCommandEvent& event );
-		void OnBalanceChanged(wxCommandEvent& event);
-		void OnTrebleChanged(wxCommandEvent& event);
-		void OnMidrangeChanged(wxCommandEvent& event);
-		void OnBassChanged(wxCommandEvent& event);
-		void OnCheckShuffle(wxCommandEvent& event);
-		void OnCheckRepeat(wxCommandEvent& event);
-		void OnButtonReverse( wxCommandEvent& event );
-		void OnButtonPause( wxCommandEvent& event );
-		void OnButtonForward( wxCommandEvent& event );
-		void OnButtonMute( wxCommandEvent& event );
-		void OnButtonPower(wxCommandEvent& event);
-		void OnFileSelected(wxCommandEvent& event);
-		// BUG BUG Used for debugging
-		void OnButtonCurrent(wxCommandEvent& event);
-		void OnButtonChild(wxCommandEvent& event);
-		void OnButtonParent(wxCommandEvent& event);
-				
+		void OnSourceChanged( wxCommandEvent& event) override;
+		void OnZone0VolumeChanged( wxCommandEvent& event) override;
+		void OnZone1VolumeChanged( wxCommandEvent& event) override;
+		void OnBalanceChanged(wxCommandEvent& event) override;
+		void OnTrebleChanged(wxCommandEvent& event) override;
+		void OnMidrangeChanged(wxCommandEvent& event) override;
+		void OnBassChanged(wxCommandEvent& event) override;
+		//void OnCheckShuffle(wxCommandEvent& event) override;
+		//void OnCheckRepeat(wxCommandEvent& event) override;
+		void OnButtonReverse( wxCommandEvent& event) override;
+		void OnButtonPause( wxCommandEvent& event) override;
+		void OnButtonForward( wxCommandEvent& event) override;
+		void OnButtonMute( wxCommandEvent& event) override;
+		void OnButtonPower(wxCommandEvent& event) override;
+		void OnFileSelected(wxCommandEvent& event) override;
+		void OnRightClick(wxMouseEvent& event) override;
+						
 	public:
 		MediaPlayerDialog( wxWindow* parent, wxEvtHandler *handler);
 		~MediaPlayerDialog(void);
-		// Getters & Setters
-		void SetZone0Volume(unsigned int volume);
-		void SetZone1Volume(unsigned int volume);
-		void SetBalance(int balance);
-		void SetBass(unsigned int bass);
-		void SetMidrange(unsigned int midrance);
-		void SetTreble(unsigned int treble);
-		void SetZone0Name(wxString name);
-		void SetZone1Name(wxString name);
-		void SetStatus(wxString statusMessage);
-		void SetShuffle(bool shuffleSTate);
-		void SetRepeat(bool repeatState);
+		// Setters
+		void SetZone0Volume(const unsigned int volume);
+		void SetZone1Volume(const unsigned int volume);
+		void SetBalance(const int balance);
+		void SetBass(const unsigned int bass);
+		void SetMidrange(const unsigned int midrance);
+		void SetTreble(const unsigned int treble);
+		void SetZone0Name(const wxString &name);
+		void SetZone1Name(const wxString &name);
+		void SetStatus(const wxString &statusMessage);
+		//void SetShuffle(bool shuffleSTate);
+		//void SetRepeat(bool repeatState);
 		void SetPlayState(bool playingState);
-		void SetPowerState(bool powerState);
-		void SetMuteState(bool muteState);
-		void SetGaugeRange(unsigned int trackLength);
-		void SetGaugeValue(unsigned int elapsedTime);
-		void SetSource(wxString sourceName);
+		void SetPowerState(const bool powerState);
+		void SetMuteState(const bool muteState);
+		void SetGaugeRange(const unsigned int trackLength);
+		void SetGaugeValue(const unsigned int elapsedTime);
+		// Used to manage the wxChoice control for selecting media sources
+		void ClearSource(void);
+		void SetSource(const wxString &sourceName);
+		void AddSource(const wxString &sourceName);
+		// Used to manage the media files list box
 		void ClearFileList(void);
+		void AppendFile(const wxString &itemName, const int itemId);
+		void AppendFolder(const wxString &folderName, const MEDIA_FILE_TYPE folderType, const int folderId);
+		void SetRootFolder(const wxString &folderName);
+		void AppendRadioStation(const wxString &radioStation, const int frequency, const int index);
+		// Currently unused - Could abstract the command events
 		void RequestRootFolder(void);
 		void RequestChildFolder(int folderId);
 		void RequestParentFolder(int folderId);
-		void AppendFile(wxString itemName, int itemId);
-		void AppendFolder(wxString folderName, MEDIA_FILE_TYPE folderType, int folderId);
-		void SetRootFolder(wxString folderName);
 
 	private:
 		wxEvtHandler *eventHandler;

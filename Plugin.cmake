@@ -13,16 +13,16 @@
 # -------- Options ----------
 
 set(OCPN_TEST_REPO
-    "steven-adler/engineplugin-alpha"
+    "steven-adler/mediaplayer-alpha"
     CACHE STRING "Default repository for untagged builds"
 )
 set(OCPN_BETA_REPO
-    "steven-adler/engineplugin-beta"
+    "steven-adler/mediaplayer-beta"
     CACHE STRING
     "Default repository for tagged builds matching 'beta'"
 )
 set(OCPN_RELEASE_REPO
-    "steven-adler/engineplugin-prod"
+    "steven-adler/mediaplayer-prod"
     CACHE STRING
     "Default repository for tagged builds not matching 'beta'"
 )
@@ -41,7 +41,7 @@ set(PKG_SUMMARY "Media Player")
 set(PKG_DESCRIPTION "Remote Control for Fusion Media Players")
 set(PKG_AUTHOR "twocanplugin@hotmail.com")
 set(PKG_IS_OPEN_SOURCE "yes")
-set(PKG_HOMEPAGE https://https://github.com/twocanplugin/enginedashboard)
+set(PKG_HOMEPAGE https://https://github.com/twocanplugin/mediaplayer)
 set(PKG_INFO_URL https://opencpn-manuals.github.io/main/engine-dash/0.1/index.html)
 
 set(PKG_API_LIB api-20)   # Specify the plugin API level
@@ -53,14 +53,18 @@ include_directories(${CMAKE_SOURCE_DIR}/inc)
 set(SRC
 ${CMAKE_SOURCE_DIR}/src/mediaplayer_dialog.cpp
 ${CMAKE_SOURCE_DIR}/src/mediaplayer_dialogbase.cpp
-${CMAKE_SOURCE_DIR}/src/mediaplayer_parser.cpp
 ${CMAKE_SOURCE_DIR}/src/mediaplayer_plugin.cpp
+${CMAKE_SOURCE_DIR}/src/mediaplayer_options.cpp
+${CMAKE_SOURCE_DIR}/src/mediaplayer_optionsbase.cpp
+${CMAKE_SOURCE_DIR}/src/mediaplayer_optionpages.cpp
 )
 set (INC
 ${CMAKE_SOURCE_DIR}/inc/mediaplayer_dialog.h
-${CMAKE_SOURCE_DIR}/mediaplayer_dialogbase.h
-${CMAKE_SOURCE_DIR}/mediaplayer_parser.h
-${CMAKE_SOURCE_DIR}/mediaplayer_plugin.h
+${CMAKE_SOURCE_DIR}/inc/mediaplayer_dialogbase.h
+${CMAKE_SOURCE_DIR}/inc/mediaplayer_plugin.h
+${CMAKE_SOURCE_DIR}/inc/mediaplayer_options.h
+${CMAKE_SOURCE_DIR}/inc/mediaplayer_optionsbase.h
+${CMAKE_SOURCE_DIR}/inc/mediaplayer_optionpages.h
 )
 
 set (SOURCE_FILES ${SRC} ${INC})

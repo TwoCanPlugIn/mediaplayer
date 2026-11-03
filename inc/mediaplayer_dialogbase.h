@@ -18,16 +18,18 @@
 #include <wx/sizer.h>
 #include <wx/gauge.h>
 #include <wx/statbox.h>
+#include <wx/choice.h>
 #include <wx/listbox.h>
+#include <wx/slider.h>
+#include <wx/panel.h>
 #include <wx/button.h>
 #include <wx/bitmap.h>
 #include <wx/image.h>
 #include <wx/icon.h>
-#include <wx/radiobox.h>
-#include <wx/checkbox.h>
-#include <wx/panel.h>
-#include <wx/slider.h>
-#include <wx/notebook.h>
+#include <wx/srchctrl.h>
+#include <wx/treectrl.h>
+#include <wx/scrolwin.h>
+#include <wx/dialog.h>
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -39,20 +41,13 @@ class MediaPlayerDialogBase : public wxPanel
 	private:
 
 	protected:
-		wxNotebook* mediaPlayerNotebook;
 		wxPanel* panelMedia;
 		wxStaticBoxSizer* sizerStatus;
 		wxStaticText* labelMediaPlayerStatus;
 		wxGauge* gaugeProgress;
 		wxStaticBoxSizer* sizerMedia;
+		wxChoice* choiceSource;
 		wxListBox* listFiles;
-		wxButton* buttonCurrent;
-		wxButton* buttonChild;
-		wxButton* buttonParent;
-		wxRadioBox* radioBoxSource;
-		wxCheckBox* checkShuffle;
-		wxCheckBox* checkRepeat;
-		wxPanel* panelVolume;
 		wxStaticBoxSizer* sizerZone0Volume;
 		wxSlider* sliderZone0Volume;
 		wxStaticBoxSizer* sizerZone1Volume;
@@ -69,13 +64,9 @@ class MediaPlayerDialogBase : public wxPanel
 
 		// Virtual event handlers, override them in your derived class
 		virtual void OnInit( wxInitDialogEvent& event ) { event.Skip(); }
-		virtual void OnFileSelected( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnButtonCurrent( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnButtonChild( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnButtonParent( wxCommandEvent& event ) { event.Skip(); }
 		virtual void OnSourceChanged( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnCheckShuffle( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnCheckRepeat( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnFileSelected( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnRightClick( wxMouseEvent& event ) { event.Skip(); }
 		virtual void OnZone0VolumeChanged( wxCommandEvent& event ) { event.Skip(); }
 		virtual void OnZone1VolumeChanged( wxCommandEvent& event ) { event.Skip(); }
 		virtual void OnBalanceChanged( wxCommandEvent& event ) { event.Skip(); }
@@ -91,9 +82,41 @@ class MediaPlayerDialogBase : public wxPanel
 
 	public:
 
-		MediaPlayerDialogBase( wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 575,548 ), long style = wxTAB_TRAVERSAL, const wxString& name = wxEmptyString );
+		MediaPlayerDialogBase( wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 500,500 ), long style = wxTAB_TRAVERSAL, const wxString& name = wxEmptyString );
 
 		~MediaPlayerDialogBase();
+
+};
+
+///////////////////////////////////////////////////////////////////////////////
+/// Class MediaPlayerSettingsBase
+///////////////////////////////////////////////////////////////////////////////
+class MediaPlayerSettingsBase : public wxDialog
+{
+	private:
+
+	protected:
+		wxSearchCtrl* searchOptions;
+		wxTreeCtrl* treeOptions;
+		wxStdDialogButtonSizer* sizerButtons;
+		wxButton* sizerButtonsOK;
+		wxButton* sizerButtonsCancel;
+
+		// Virtual event handlers, override them in your derived class
+		virtual void OnSearch( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnTreeSelected( wxTreeEvent& event ) { event.Skip(); }
+		virtual void OnTreeChanging( wxTreeEvent& event ) { event.Skip(); }
+		virtual void OnCancel( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnOk( wxCommandEvent& event ) { event.Skip(); }
+
+
+	public:
+		wxScrolledWindow* scrollWindow;
+		wxFlexGridSizer* sizerFlex;
+
+		MediaPlayerSettingsBase( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("MediaPlayer Settings"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 502,488 ), long style = wxDEFAULT_DIALOG_STYLE );
+
+		~MediaPlayerSettingsBase();
 
 };
 

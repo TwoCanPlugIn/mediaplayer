@@ -27,22 +27,13 @@
 // Date: 10/10/2021
 // Version History:
 // 1.0 Initial Release
+// 01/10/2026 - 2.0 Independant of TwoCan plugin, uses OpenCPN NMEA 2000 interfaces
 //
-// BUG BUG To Do
-// Pre-set radio stations, Settings (Zone & Device Names etc.), Bluetooth pairing with media devices.
 
 #include "mediaplayer_dialog.h"
 
-// BUG BUG DEBUG REMOVE
-#include <wx/socket.h>
-#include <wx/msgdlg.h>
-
-extern wxDatagramSocket *debugSocket;
-extern wxIPV4address addrPeer;
-wxString msg;
-
-// Media File/Folder Client Item Data used for folders & music tracks from media devices
-MediaFileItem::MediaFileItem(int id, int type, int level) {
+// Media File/Folder Client Metadata used for folders & music tracks from media devices
+MediaFileItem::MediaFileItem(const int id, const MEDIA_FILE_TYPE type, const int level) {
 	itemType = type;
 	itemId = id;
 	itemLevel = level;
@@ -55,7 +46,7 @@ int MediaFileItem::GetId() {
 	return itemId;
 }
 
-int MediaFileItem::GetMediaType() {
+MEDIA_FILE_TYPE MediaFileItem::GetMediaType() {
 	return itemType;
 }
 
@@ -66,30 +57,21 @@ int MediaFileItem::GetLevel() {
 // The plugin dialog, inherits from a base class developed using wxFormBuilder
 MediaPlayerDialog::MediaPlayerDialog( wxWindow* parent, wxEvtHandler *handler) : MediaPlayerDialogBase(parent) {
 	eventHandler = handler;
+	SetMinSize(wxSize(500,500));
+	Fit();
 	Layout();
-}
+
+	}
 
 MediaPlayerDialog::~MediaPlayerDialog(void) {
 }
 
 // Event Handlers
-// Debugging
-void MediaPlayerDialog::OnButtonCurrent(wxCommandEvent& event) {
-	wxCommandEvent *commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_LIST_CURRENT);
-	wxQueueEvent(eventHandler, commandEvent);
-}
 
-void MediaPlayerDialog::OnButtonChild(wxCommandEvent& event) {
-	wxCommandEvent *commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_LIST_CHILD);
-	wxQueueEvent(eventHandler, commandEvent);
-}
-
-void MediaPlayerDialog::OnButtonParent(wxCommandEvent& event) {
-	wxCommandEvent *commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_LIST_PARENT);
-	wxQueueEvent(eventHandler, commandEvent);
-}
-
-// Clicking on a track in the media list box
+// Clicking on an item in the media list box
+// BUG BUG, When navigating back up, would be nice to highlight where we were
+// BUG BUG Include the path (breadcrumbs) for the folders.
+// eg. iAudio\Music\Chain\Towards The Blues\.. 
 void MediaPlayerDialog::OnFileSelected(wxCommandEvent& event) {
 
 	int itemNumber = event.GetSelection();
@@ -101,105 +83,120 @@ void MediaPlayerDialog::OnFileSelected(wxCommandEvent& event) {
 
 		int fileId = selectedItemData->GetId();
 		int level = selectedItemData->GetLevel();
-		int mediaType = selectedItemData->GetMediaType();
+		MEDIA_FILE_TYPE mediaType = selectedItemData->GetMediaType();
 
+		// if it is a radio station, change to that frequency
+		if (mediaType == MEDIA_FILE_TYPE::RADIO) {
+			wxCommandEvent* commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_SELECT_PRESET);
+			// Note to self, for radio station presets, the fileId contains the 
+			// frequency and level contains the index into the list if presets
+			commandEvent->SetInt(fileId);
+			wxQueueEvent(eventHandler, commandEvent);
+			return;
+		}
+
+		// Clicked on the "..". Equivalent to cd ..
 		if (event.GetString() == "..") {
-
-			wxMessageBox(wxString::Format("On cd .. selected, Level: %d", level));
-
+			listFiles->Clear();
 			if (selectedItemData->GetLevel() == 1) {
-
 				// We're back at the top level directory which is the media device itself
-				listFiles->Clear();
 				// Don't append a dummy root, because we are the root !
-				// Get the device name to display
-				RequestRootFolder();
+				wxCommandEvent *commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_LIST_PARENT);
+				commandEvent->SetInt(0);
+				wxQueueEvent(eventHandler, commandEvent);
 			}
 
 			else {
-
-				listFiles->Clear();
-				// Add a dummy root for the previous level
+				// Add a dummy root so we can return to the parent folder
 				listFiles->Append("..", new MediaFileItem(0, MEDIA_FILE_TYPE::PHYSICALFOLDER, level - 1));
-				// Get the child folders from the previous heirachy level
-				RequestChildFolder(0);
+				
+				// Get the child folders for the previous level
+				wxCommandEvent* commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_LIST_PARENT);
+				commandEvent->SetInt(0);
+				wxQueueEvent(eventHandler, commandEvent);
 			}
 		}
 
 		else {
-			// Clicked on a folder name
+			// Clicked on an item
 			if (selectedItemData->GetMediaType() != MEDIA_FILE_TYPE::MUSICTRACK) {
-
-				wxMessageBox(wxString::Format("Level: %d, Folder Id: %d", level, fileId));
-
-				// Clear the list box and add the dummy root
+				// Clear the list box and add a dummy root
 				listFiles->Clear();
 				listFiles->Append("..", new MediaFileItem(0, mediaType, level + 1));
-				// Get the child folders
-				RequestChildFolder(fileId);
+				
+				// Get the children of this folder
+				wxCommandEvent* commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_LIST_CHILD);
+				commandEvent->SetInt(fileId);
+				wxQueueEvent(eventHandler, commandEvent);
+			}
+			else {
+				// Play the music track
+				wxCommandEvent* commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_FILE_PLAY);
+				commandEvent->SetInt(fileId);
+				wxQueueEvent(eventHandler, commandEvent);
 			}
 		}
 	}
 }
 
+// Context Menu for the ListCtrl
+void MediaPlayerDialog::OnRightClick(wxMouseEvent& event) {
+	int itemNumber = listFiles->GetSelection();
+	int contextMenuId;
+	wxListBox* listBox = wxDynamicCast(event.GetEventObject(), wxListBox);
+	MediaFileItem* selectedItemData = NULL;
 
-// Handle changes from the radio buttons used to select different media sources
-void MediaPlayerDialog::OnSourceChanged(wxCommandEvent& event) {
-	wxString selectedSource = radioBoxSource->GetString(event.GetSelection());
-	wxCommandEvent *commandEvent;
-	commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_SOURCE);
-	commandEvent->SetString(selectedSource);
-	wxQueueEvent(eventHandler, commandEvent);
-	// Only a usb media device has the concept of pause/play,shuffle & repeat
-	// BUG BUG is this necessary as the setters also perform this
-	// BUG BUG Impact of translations on selections
-	if (selectedSource.Lower() == "usb") {
-		buttonPause->Enable(true);
-		checkRepeat->Enable(true);
-		checkShuffle->Enable(true);
-	}
-	else {
-		buttonPause->Enable(false);
-		checkRepeat->Enable(false);
-		checkShuffle->Enable(false);
-	}
+	if (listBox != NULL && itemNumber != wxNOT_FOUND) {
+		selectedItemData = static_cast<MediaFileItem*>(listBox->GetClientObject(itemNumber));
 
-	// Only a usb media device or am/fm radio has the concept of next, previous
-	if ((selectedSource.Lower() == "am") || (selectedSource.Lower() == "fm") ||
-		(selectedSource.Lower() == "usb")) {
-		buttonForward->Enable(true);
-		buttonReverse->Enable(true);
-	}
-	else {
-		buttonForward->Enable(false);
-		buttonReverse->Enable(false);
-	}
-}
+		if (selectedItemData->GetMediaType() == MEDIA_FILE_TYPE::MUSICTRACK) {
+			wxMenu menu;
+			menu.Append(MEDIAPLAYER_FILE_PLAY, "&Play");
 
+			contextMenuId = listFiles->GetPopupMenuSelectionFromUser(menu);
+			
+			if (contextMenuId == MEDIAPLAYER_FILE_PLAY) {
+				wxCommandEvent* commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_FILE_PLAY);
+				commandEvent->SetInt(selectedItemData->GetId());
+				wxQueueEvent(eventHandler, commandEvent);
+			}
+		}
+		else if (selectedItemData->GetMediaType() == MEDIA_FILE_TYPE::RADIO) {
+			wxMenu menu;
+			menu.Append(MEDIAPLAYER_FILE_PLAY, "&Select");
+			menu.Append(MEDIAPLAYER_DELETE_PRESET, "&Delete");
 
-// Context Menu for music tracks
-/*
-void MediaPlayerDialog::OnItemContextMenu(wxTreeEvent& event) {
-	MediaFileItem *itemData;
-	itemData = (MediaFileItem *)mediaTreeList->GetItemData(event.GetItem());
-	if (itemData->GetItemType() == MEDIA_FILE_TYPE::MUSICTRACK) {
-		wxMenu menu;
-		menu.Append(ID_MENU_ITEM_PLAY, "&Play");
-
-		if (mediaTreeList->GetPopupMenuSelectionFromUser(menu) == ID_MENU_ITEM_PLAY) {
-			wxCommandEvent *commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_FILE_PLAY);
-			commandEvent->SetString(std::to_string(itemData->GetItemId()));
-			wxQueueEvent(eventHandler, commandEvent);
+			contextMenuId = listFiles->GetPopupMenuSelectionFromUser(menu); 
+			
+			if (contextMenuId == MEDIAPLAYER_FILE_PLAY) {
+				wxCommandEvent* commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_SELECT_PRESET);
+				commandEvent->SetInt(selectedItemData->GetId());
+				wxQueueEvent(eventHandler, commandEvent);
+			}
+			else if (contextMenuId == MEDIAPLAYER_DELETE_PRESET) {
+				wxCommandEvent* commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_DELETE_PRESET);
+				commandEvent->SetInt(selectedItemData->GetLevel());
+				wxQueueEvent(eventHandler, commandEvent);
+			}
 		}
 	}
 }
 
-*/
-
 void MediaPlayerDialog::OnZone0VolumeChanged(wxCommandEvent& event) {
-	wxCommandEvent *commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_ZONE0);
+	wxCommandEvent* commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_ZONE0);
 	commandEvent->SetInt(sliderZone0Volume->GetValue());
-	wxQueueEvent(eventHandler, commandEvent);	
+	wxQueueEvent(eventHandler, commandEvent);
+}
+
+// BUG BUG Much of this will break if the labels change (eg. localization)
+// Handle changes from the wxChoice control used to select different media sources
+void MediaPlayerDialog::OnSourceChanged(wxCommandEvent& event) {
+	wxString selectedSource = choiceSource->GetString(event.GetSelection());
+
+	wxCommandEvent *commandEvent;
+	commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_SOURCE);
+	commandEvent->SetString(selectedSource);
+	wxQueueEvent(eventHandler, commandEvent);
 }
 
 void MediaPlayerDialog::OnZone1VolumeChanged(wxCommandEvent& event) {
@@ -233,7 +230,7 @@ void MediaPlayerDialog::OnBassChanged(wxCommandEvent& event) {
 }
 
 void MediaPlayerDialog::OnButtonReverse(wxCommandEvent& event) {
-	wxCommandEvent *commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_PREVIOUS);
+	wxCommandEvent *commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_PREVIOUS_TRACK);
 	commandEvent->SetString(_T("Previous"));
 	wxQueueEvent(eventHandler, commandEvent);
 }
@@ -242,166 +239,162 @@ void MediaPlayerDialog::OnButtonPause(wxCommandEvent& event) {
 	wxCommandEvent *commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_PAUSE);
 	commandEvent->SetString(buttonPause->GetLabel());
 	wxQueueEvent(eventHandler, commandEvent);
-	isPlaying = !isPlaying;
-	// Let the setter do it's stuff
-	//buttonPause->SetLabel(isPlaying ? "Pause" :"Play");
-} 
-
-void MediaPlayerDialog::OnCheckShuffle(wxCommandEvent& event) {
-	wxCommandEvent *commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_SHUFFLE);
-	commandEvent->SetInt(checkShuffle->IsChecked());
-	wxQueueEvent(eventHandler, commandEvent);
-}
-
-void MediaPlayerDialog::OnCheckRepeat(wxCommandEvent& event) {
-	wxCommandEvent *commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_REPEAT);
-	commandEvent->SetInt(checkRepeat->IsChecked());
-	wxQueueEvent(eventHandler, commandEvent);
 }
 
 void MediaPlayerDialog::OnButtonForward(wxCommandEvent& event) {
-	wxCommandEvent *commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_NEXT);
+	wxCommandEvent* commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_NEXT_TRACK);
 	commandEvent->SetString(_T("Next"));
 	wxQueueEvent(eventHandler, commandEvent);
 }
+
+//void MediaPlayerDialog::OnCheckShuffle(wxCommandEvent& event) {
+//	wxCommandEvent *commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_SHUFFLE);
+//	commandEvent->SetInt(checkShuffle->IsChecked());
+//	wxQueueEvent(eventHandler, commandEvent);
+//}
+
+//void MediaPlayerDialog::OnCheckRepeat(wxCommandEvent& event) {
+//	wxCommandEvent *commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_REPEAT);
+//	commandEvent->SetInt(checkRepeat->IsChecked());
+//	wxQueueEvent(eventHandler, commandEvent);
+//}
 
 void MediaPlayerDialog::OnButtonMute(wxCommandEvent& event) {
 	wxCommandEvent *commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_MUTE);
 	commandEvent->SetString(buttonMute->GetLabel());
 	wxQueueEvent(eventHandler, commandEvent);
-	isMuted = !isMuted;
-	buttonMute->SetLabel(isMuted ? "Unmute" : "Mute");
 }
 
 void MediaPlayerDialog::OnButtonPower(wxCommandEvent& event) {
 	wxCommandEvent *commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_ON);
 	commandEvent->SetString(buttonPower->GetLabel());
 	wxQueueEvent(eventHandler, commandEvent);
-	isOn = !isOn;
-	buttonPower->SetLabel(isOn ? "Off" : "On");
-	// Set other control states as when the device is off, we get no notifications
-	if (!isOn) {
-		buttonPause->Enable(false);
-		buttonForward->Enable(false);
-		buttonReverse->Enable(false);
-		labelMediaPlayerStatus->SetLabel(wxEmptyString);
-		gaugeProgress->SetValue(0);
-	}
 }
 
 // Setters invoked to keep dialog in synch with responses received from the media player
 // Eg. the media player could be simultaneously controlled by its own remote control, 
 // so we monitor the responses and ensure we display the same values.
 
-void MediaPlayerDialog::SetZone0Volume(unsigned int volume) {
+void MediaPlayerDialog::SetZone0Volume(const unsigned int volume) {
 	sliderZone0Volume->SetValue(volume);
 }
 
-void MediaPlayerDialog::SetZone1Volume(unsigned int volume) {
+void MediaPlayerDialog::SetZone1Volume(const unsigned int volume) {
 	sliderZone1Volume->SetValue(volume);
 }
 
-void MediaPlayerDialog::SetBalance(int balance) {
+void MediaPlayerDialog::SetBalance(const int balance) {
 	sliderBalance->SetValue(balance);
 }
 
-void MediaPlayerDialog::SetBass(unsigned int bass) {
+void MediaPlayerDialog::SetBass(const unsigned int bass) {
 	sliderBass->SetValue(bass);
 }
 
-void MediaPlayerDialog::SetMidrange(unsigned int midrange) {
+void MediaPlayerDialog::SetMidrange(const unsigned int midrange) {
 	sliderMidrange->SetValue(midrange);
 }
 
-void MediaPlayerDialog::SetTreble(unsigned int treble) {
+void MediaPlayerDialog::SetTreble(const unsigned int treble) {
 	sliderTreble->SetValue(treble);
 }
 
-void MediaPlayerDialog::SetZone0Name(wxString name) {
+void MediaPlayerDialog::SetZone0Name(const wxString &name) {
 	sizerZone0Volume->GetStaticBox()->SetLabel(name.Capitalize() + " volume");
 }
 
-void MediaPlayerDialog::SetZone1Name(wxString name) {
+void MediaPlayerDialog::SetZone1Name(const wxString &name) {
 	sizerZone1Volume->GetStaticBox()->SetLabel(name.Capitalize() + " volume");
 }
 
-void MediaPlayerDialog::SetStatus(wxString statusMessage) {
+void MediaPlayerDialog::SetStatus(const wxString &statusMessage) {
 	labelMediaPlayerStatus->SetLabel(statusMessage);
 }
 
-void MediaPlayerDialog::SetShuffle(bool shuffleState) {
-	checkShuffle->SetValue(shuffleState);
-}
+//void MediaPlayerDialog::SetShuffle(const bool shuffleState) {
+//	checkShuffle->SetValue(shuffleState);
+//}
 
-void MediaPlayerDialog::SetRepeat(bool repeatState) {
-	checkRepeat->SetValue(repeatState);
-}
+//void MediaPlayerDialog::SetRepeat(const bool repeatState) {
+//	checkRepeat->SetValue(repeatState);
+//}
 
-void MediaPlayerDialog::SetGaugeRange(unsigned int seconds) {
+void MediaPlayerDialog::SetGaugeRange(const unsigned int seconds) {
 	gaugeProgress->SetRange(seconds);
 	gaugeProgress->Refresh();
 }
 
-void MediaPlayerDialog::SetGaugeValue(unsigned int elapsedTime) {
+void MediaPlayerDialog::SetGaugeValue(const unsigned int elapsedTime) {
 	gaugeProgress->SetValue(elapsedTime);
 	gaugeProgress->Refresh();
 }
 
-void MediaPlayerDialog::SetPlayState(bool playingState) {
-	isPlaying = playingState;
-	buttonPause->SetLabelText(isPlaying ? "Pause" : "Play");
-	// By definition,if we are playing, we are on.
-	// Perhaps unit has been turned on by another remote
-	SetPowerState(isPlaying);
+void MediaPlayerDialog::SetPlayState(const bool playingState) {
+	buttonPause->SetLabelText(playingState ? "Pause" : "Play");
 }
 
-void MediaPlayerDialog::SetPowerState(bool powerState) {
-	isOn = powerState;
-	buttonPower->SetLabel(isOn ? "Off" : "On");
-	if (!isOn) {
-		buttonPause->Enable(false);
-		buttonForward->Enable(false);
-		buttonReverse->Enable(false);
-		labelMediaPlayerStatus->SetLabel(wxEmptyString);
+void MediaPlayerDialog::SetPowerState(const bool powerState) {
+	buttonPower->SetLabel(powerState ? "Off" : "On");
+	buttonPause->Enable(powerState);
+	buttonForward->Enable(powerState);
+	buttonReverse->Enable(powerState);
+	buttonMute->Enable(powerState);
+	sliderZone0Volume->Enable(powerState);
+	sliderZone1Volume->Enable(powerState);
+	sliderBalance->Enable(powerState);
+	sliderBass->Enable(powerState);
+	sliderMidrange->Enable(powerState);
+	sliderTreble->Enable(powerState);
+	choiceSource->Enable(powerState);
+	if (!powerState) {
+		labelMediaPlayerStatus->SetLabel("Not connected");
 		gaugeProgress->SetValue(0);
 	}
-	else {
-		buttonPause->Enable(true);
-		buttonForward->Enable(true);
-		buttonReverse->Enable(true);
-
-	}
 }
 
-void MediaPlayerDialog::SetMuteState(bool muteState) {
-	isMuted = muteState;
-	buttonMute->SetLabel(isMuted ? "Unmute" : "Mute");
+void MediaPlayerDialog::SetMuteState(const bool muteState) {
+	buttonMute->SetLabel(muteState ? "Unmute" : "Mute");
 }
 
-void MediaPlayerDialog::SetSource(wxString sourceName) {
-	for (size_t i = 0; i < radioBoxSource->GetCount(); i++) {
-		if (radioBoxSource->GetString(i).Lower() == sourceName) {
-			if (radioBoxSource->GetSelection() != i) {
-				radioBoxSource->SetSelection(i);
-			}
-		}
+void MediaPlayerDialog::ClearSource(void) {
+	choiceSource->Clear();
+}
+
+void MediaPlayerDialog::AddSource(const wxString &sourceName) {
+	choiceSource->Append(sourceName);
+}
+
+void MediaPlayerDialog::SetSource(const wxString &sourceName) {
+	int selectedItem;
+	selectedItem = choiceSource->FindString(sourceName);
+	if (selectedItem == wxNOT_FOUND) {
+		return;
 	}
+
+	choiceSource->SetSelection(selectedItem);
+	
 	// Pause/Play, Shuffle & Repeat only applicable to USB/MTP/iPod devices
-	if (radioBoxSource->GetString(radioBoxSource->GetSelection()).Lower() == "usb") {
+	if (choiceSource->GetString(choiceSource->GetSelection()).Lower() == "usb") {
 		buttonPause->Enable(true);
-		checkRepeat->Enable(true);
-		checkShuffle->Enable(true);
+		buttonPause->SetLabel("Pause");
+		//checkRepeat->Enable(true);
+		//checkShuffle->Enable(true);
+	}
+	
+	// For radio, instead of Pause/Play we use the same button to save presets
+	else if ((choiceSource->GetString(choiceSource->GetSelection()).Lower() == "am") ||
+		(choiceSource->GetString(choiceSource->GetSelection()).Lower() == "fm")) {
+		buttonPause->Enable(true);
+		buttonPause->SetLabel("Save"); // Save current station as a preset;
 	}
 	else {
 		buttonPause->Enable(false);
-		checkRepeat->Enable(false);
-		checkShuffle->Enable(false);
 	}
 
 	// Only a usb media device or am/fm radio has the concept of next, previous
-	if ((radioBoxSource->GetString(radioBoxSource->GetSelection()).Lower() == "am") ||
-		(radioBoxSource->GetString(radioBoxSource->GetSelection()).Lower() == "fm") ||
-		(radioBoxSource->GetString(radioBoxSource->GetSelection()).Lower() == "usb")) {
+	if ((choiceSource->GetString(choiceSource->GetSelection()).Lower() == "am") ||
+		(choiceSource->GetString(choiceSource->GetSelection()).Lower() == "fm") ||
+		(choiceSource->GetString(choiceSource->GetSelection()).Lower() == "usb")) {
 		buttonForward->Enable(true);
 		buttonReverse->Enable(true);
 	}
@@ -412,8 +405,15 @@ void MediaPlayerDialog::SetSource(wxString sourceName) {
 }
 
 // Media File Stuff
-void MediaPlayerDialog::AppendFolder(wxString folderName, MEDIA_FILE_TYPE folderType, int folderId) {
-	// Called when we receive a folder of type PHYSICAL_FOLDER. VIRTUAL_FOLDER
+
+// Called when we receive an item of type MTPFOLDER (eg. root)
+void MediaPlayerDialog::SetRootFolder(const wxString &folderName) {
+	listFiles->Clear();
+	listFiles->Append(folderName, new MediaFileItem(0, MEDIA_FILE_TYPE::MTPFOLDER, 0));
+}
+
+void MediaPlayerDialog::AppendFolder(const wxString &folderName, const MEDIA_FILE_TYPE folderType, const int folderId) {
+	// Called when we receive an item of type PHYSICAL_FOLDER or VIRTUAL_FOLDER
 	// Use the dummy root, to get the current folder heirarchy level
 	int itemNumber = listFiles->FindString("..");
 	MediaFileItem *selectedItemData = NULL;
@@ -425,15 +425,9 @@ void MediaPlayerDialog::AppendFolder(wxString folderName, MEDIA_FILE_TYPE folder
 	}
 }
 
-// Called when we receive a folder of type MTPFOLDER (eg. root)
-void MediaPlayerDialog::SetRootFolder(wxString folderName) {
-	listFiles->Clear();
-	listFiles->Append(folderName, new MediaFileItem(0, MEDIA_FILE_TYPE::MTPFOLDER, 0));
-}
-
-void MediaPlayerDialog::AppendFile(wxString itemName, int itemId) {
-	// Called when we receive a folder of type MUSIC_TRACK
-	// Use the dummy root, to get the folder heirarchy level
+void MediaPlayerDialog::AppendFile(const wxString &itemName, const int itemId) {
+	// Called when we receive an item of type MUSIC_TRACK
+	// Use the dummy root, to get the current folder heirarchy
 	int itemNumber = listFiles->FindString("..");
 	MediaFileItem *selectedItemData = NULL;
 
@@ -449,7 +443,15 @@ void MediaPlayerDialog::ClearFileList(void) {
 	listFiles->Clear();
 }
 
+// Append a preset radio statio to the list control.
+void MediaPlayerDialog::AppendRadioStation(const wxString &radioStation, const int frequency, const int index) {
+	// ClientData is used to contain the preset radio station metadata
+	// folderId contains the frequency, level contains the index
+	listFiles->Append(radioStation, new MediaFileItem(frequency, MEDIA_FILE_TYPE::RADIO, index));
+}
+
 // Called when a usb device is selected. Gets the device name
+// BUG BUG UNUSED
 void MediaPlayerDialog::RequestRootFolder(void) {
 	wxCommandEvent *commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_PREVIOUS_FOLDER);
 	commandEvent->SetInt(0);
@@ -457,6 +459,7 @@ void MediaPlayerDialog::RequestRootFolder(void) {
 }
 
 // Called when double clicked on a folder, to retrieve child folders
+// BUG BUG UNUSED
 void MediaPlayerDialog::RequestChildFolder(int folderId) {
 	wxCommandEvent *commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_NEXT_FOLDER);
 	commandEvent->SetInt(folderId);
@@ -464,12 +467,10 @@ void MediaPlayerDialog::RequestChildFolder(int folderId) {
 }
 
 // Called when double clicking on ".." to go back up one level in the folder heirarchy
+// BUG BUG Unused
 void MediaPlayerDialog::RequestParentFolder(int folderId) {
 	wxCommandEvent *commandEvent = new wxCommandEvent(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_PREVIOUS_FOLDER);
 	commandEvent->SetInt(folderId);
 	wxQueueEvent(eventHandler, commandEvent);
-	//root["entertainment"]["device"]["media"]["request"] = FOLDER_REQUEST::PREVIOUS_FOLDER;
-	//root["entertainment"]["device"]["media"]["folderid"] = 0; // This seems to always be zero
-	//writer.Write(root, message_body);
-	//SendPluginMessage(_T("TWOCAN_MEDIA_REQUEST"), message_body);
 }
+

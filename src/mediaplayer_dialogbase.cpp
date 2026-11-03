@@ -14,8 +14,7 @@ MediaPlayerDialogBase::MediaPlayerDialogBase( wxWindow* parent, wxWindowID id, c
 	wxBoxSizer* sizerDialog;
 	sizerDialog = new wxBoxSizer( wxVERTICAL );
 
-	mediaPlayerNotebook = new wxNotebook( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, 0 );
-	panelMedia = new wxPanel( mediaPlayerNotebook, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
+	panelMedia = new wxPanel( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
 	wxBoxSizer* sizerPanel;
 	sizerPanel = new wxBoxSizer( wxVERTICAL );
 
@@ -49,20 +48,16 @@ MediaPlayerDialogBase::MediaPlayerDialogBase( wxWindow* parent, wxWindowID id, c
 	wxBoxSizer* sizerFiles;
 	sizerFiles = new wxBoxSizer( wxVERTICAL );
 
+	wxArrayString choiceSourceChoices;
+	choiceSource = new wxChoice( sizerMedia->GetStaticBox(), wxID_ANY, wxDefaultPosition, wxDefaultSize, choiceSourceChoices, wxCB_SORT );
+	choiceSource->SetSelection( 0 );
+	sizerFiles->Add( choiceSource, 0, wxALL|wxEXPAND, 5 );
+
 	listFiles = new wxListBox( sizerMedia->GetStaticBox(), wxID_ANY, wxDefaultPosition, wxDefaultSize, 0, NULL, 0 );
 	sizerFiles->Add( listFiles, 1, wxALL|wxEXPAND, 5 );
 
 	wxBoxSizer* sizerDebug;
 	sizerDebug = new wxBoxSizer( wxHORIZONTAL );
-
-	buttonCurrent = new wxButton( sizerMedia->GetStaticBox(), wxID_ANY, wxT("Current"), wxDefaultPosition, wxDefaultSize, 0 );
-	sizerDebug->Add( buttonCurrent, 0, wxALL, 5 );
-
-	buttonChild = new wxButton( sizerMedia->GetStaticBox(), wxID_ANY, wxT("Next"), wxDefaultPosition, wxDefaultSize, 0 );
-	sizerDebug->Add( buttonChild, 0, wxALL, 5 );
-
-	buttonParent = new wxButton( sizerMedia->GetStaticBox(), wxID_ANY, wxT("Previous"), wxDefaultPosition, wxDefaultSize, 0 );
-	sizerDebug->Add( buttonParent, 0, wxALL, 5 );
 
 
 	sizerFiles->Add( sizerDebug, 0, wxEXPAND, 5 );
@@ -70,37 +65,10 @@ MediaPlayerDialogBase::MediaPlayerDialogBase( wxWindow* parent, wxWindowID id, c
 
 	sizerMedia->Add( sizerFiles, 1, wxEXPAND, 5 );
 
-	wxBoxSizer* sizerOptions;
-	sizerOptions = new wxBoxSizer( wxVERTICAL );
-
-	wxString radioBoxSourceChoices[] = { wxT("AM"), wxT("FM"), wxT("Aux"), wxT("Aux2"), wxT("USB"), wxT("BT") };
-	int radioBoxSourceNChoices = sizeof( radioBoxSourceChoices ) / sizeof( wxString );
-	radioBoxSource = new wxRadioBox( sizerMedia->GetStaticBox(), wxID_ANY, wxT("Audio Source"), wxDefaultPosition, wxDefaultSize, radioBoxSourceNChoices, radioBoxSourceChoices, 1, wxRA_SPECIFY_COLS );
-	radioBoxSource->SetSelection( 3 );
-	sizerOptions->Add( radioBoxSource, 1, wxALL|wxEXPAND, 5 );
-
-	checkShuffle = new wxCheckBox( sizerMedia->GetStaticBox(), wxID_ANY, wxT("Shuffle"), wxDefaultPosition, wxDefaultSize, 0 );
-	sizerOptions->Add( checkShuffle, 0, wxALL, 5 );
-
-	checkRepeat = new wxCheckBox( sizerMedia->GetStaticBox(), wxID_ANY, wxT("Repeat"), wxDefaultPosition, wxDefaultSize, 0 );
-	sizerOptions->Add( checkRepeat, 0, wxALL, 5 );
-
-
-	sizerMedia->Add( sizerOptions, 1, wxEXPAND, 5 );
-
-
-	sizerPanel->Add( sizerMedia, 1, wxEXPAND, 5 );
-
-
-	panelMedia->SetSizer( sizerPanel );
-	panelMedia->Layout();
-	sizerPanel->Fit( panelMedia );
-	mediaPlayerNotebook->AddPage( panelMedia, wxT("Media Sources"), true );
-	panelVolume = new wxPanel( mediaPlayerNotebook, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
 	wxBoxSizer* sizerControls;
 	sizerControls = new wxBoxSizer( wxVERTICAL );
 
-	sizerZone0Volume = new wxStaticBoxSizer( new wxStaticBox( panelVolume, wxID_ANY, wxT("Volume Zone 0") ), wxHORIZONTAL );
+	sizerZone0Volume = new wxStaticBoxSizer( new wxStaticBox( sizerMedia->GetStaticBox(), wxID_ANY, wxT("Volume Zone 0") ), wxHORIZONTAL );
 
 	sliderZone0Volume = new wxSlider( sizerZone0Volume->GetStaticBox(), wxID_ANY, 1, 0, 15, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL );
 	sizerZone0Volume->Add( sliderZone0Volume, 1, wxALL, 5 );
@@ -108,7 +76,7 @@ MediaPlayerDialogBase::MediaPlayerDialogBase( wxWindow* parent, wxWindowID id, c
 
 	sizerControls->Add( sizerZone0Volume, 1, wxEXPAND, 5 );
 
-	sizerZone1Volume = new wxStaticBoxSizer( new wxStaticBox( panelVolume, wxID_ANY, wxT("Volume Zone 1") ), wxHORIZONTAL );
+	sizerZone1Volume = new wxStaticBoxSizer( new wxStaticBox( sizerMedia->GetStaticBox(), wxID_ANY, wxT("Volume Zone 1") ), wxHORIZONTAL );
 
 	sliderZone1Volume = new wxSlider( sizerZone1Volume->GetStaticBox(), wxID_ANY, 1, 0, 15, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL );
 	sizerZone1Volume->Add( sliderZone1Volume, 1, wxALL, 5 );
@@ -117,48 +85,52 @@ MediaPlayerDialogBase::MediaPlayerDialogBase( wxWindow* parent, wxWindowID id, c
 	sizerControls->Add( sizerZone1Volume, 1, wxEXPAND, 5 );
 
 	wxStaticBoxSizer* sizerBalance;
-	sizerBalance = new wxStaticBoxSizer( new wxStaticBox( panelVolume, wxID_ANY, wxT("Balance") ), wxHORIZONTAL );
+	sizerBalance = new wxStaticBoxSizer( new wxStaticBox( sizerMedia->GetStaticBox(), wxID_ANY, wxT("Balance") ), wxHORIZONTAL );
 
-	sliderBalance = new wxSlider( sizerBalance->GetStaticBox(), wxID_ANY, 0, -10, 10, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL );
+	sliderBalance = new wxSlider( sizerBalance->GetStaticBox(), wxID_ANY, 0, -7, 7, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL );
 	sizerBalance->Add( sliderBalance, 1, wxALL, 5 );
 
 
 	sizerControls->Add( sizerBalance, 1, wxEXPAND, 5 );
 
 	wxStaticBoxSizer* sizeTreble;
-	sizeTreble = new wxStaticBoxSizer( new wxStaticBox( panelVolume, wxID_ANY, wxT("Treble") ), wxHORIZONTAL );
+	sizeTreble = new wxStaticBoxSizer( new wxStaticBox( sizerMedia->GetStaticBox(), wxID_ANY, wxT("Treble") ), wxHORIZONTAL );
 
-	sliderTreble = new wxSlider( sizeTreble->GetStaticBox(), wxID_ANY, 2, 0, 10, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL );
+	sliderTreble = new wxSlider( sizeTreble->GetStaticBox(), wxID_ANY, 0, -15, 15, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL );
 	sizeTreble->Add( sliderTreble, 1, wxALL, 5 );
 
 
 	sizerControls->Add( sizeTreble, 1, wxEXPAND, 5 );
 
 	wxStaticBoxSizer* sizerMidrange;
-	sizerMidrange = new wxStaticBoxSizer( new wxStaticBox( panelVolume, wxID_ANY, wxT("Midrange") ), wxHORIZONTAL );
+	sizerMidrange = new wxStaticBoxSizer( new wxStaticBox( sizerMedia->GetStaticBox(), wxID_ANY, wxT("Midrange") ), wxHORIZONTAL );
 
-	sliderMidrange = new wxSlider( sizerMidrange->GetStaticBox(), wxID_ANY, 2, 0, 10, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL );
+	sliderMidrange = new wxSlider( sizerMidrange->GetStaticBox(), wxID_ANY, 0, -15, 15, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL );
 	sizerMidrange->Add( sliderMidrange, 1, wxALL, 5 );
 
 
 	sizerControls->Add( sizerMidrange, 1, wxEXPAND, 5 );
 
 	wxStaticBoxSizer* sizerBass;
-	sizerBass = new wxStaticBoxSizer( new wxStaticBox( panelVolume, wxID_ANY, wxT("Bass") ), wxHORIZONTAL );
+	sizerBass = new wxStaticBoxSizer( new wxStaticBox( sizerMedia->GetStaticBox(), wxID_ANY, wxT("Bass") ), wxHORIZONTAL );
 
-	sliderBass = new wxSlider( sizerBass->GetStaticBox(), wxID_ANY, 2, 0, 10, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL );
+	sliderBass = new wxSlider( sizerBass->GetStaticBox(), wxID_ANY, 0, -15, 15, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL );
 	sizerBass->Add( sliderBass, 1, wxALL, 5 );
 
 
 	sizerControls->Add( sizerBass, 1, wxEXPAND, 5 );
 
 
-	panelVolume->SetSizer( sizerControls );
-	panelVolume->Layout();
-	sizerControls->Fit( panelVolume );
-	mediaPlayerNotebook->AddPage( panelVolume, wxT("Volume and Tone"), false );
+	sizerMedia->Add( sizerControls, 1, wxEXPAND, 5 );
 
-	sizerDialog->Add( mediaPlayerNotebook, 1, wxEXPAND | wxALL, 5 );
+
+	sizerPanel->Add( sizerMedia, 1, wxEXPAND, 5 );
+
+
+	panelMedia->SetSizer( sizerPanel );
+	panelMedia->Layout();
+	sizerPanel->Fit( panelMedia );
+	sizerDialog->Add( panelMedia, 1, wxEXPAND | wxALL, 5 );
 
 	wxBoxSizer* sizerButons;
 	sizerButons = new wxBoxSizer( wxHORIZONTAL );
@@ -187,13 +159,9 @@ MediaPlayerDialogBase::MediaPlayerDialogBase( wxWindow* parent, wxWindowID id, c
 
 	// Connect Events
 	this->Connect( wxEVT_INIT_DIALOG, wxInitDialogEventHandler( MediaPlayerDialogBase::OnInit ) );
+	choiceSource->Connect( wxEVT_COMMAND_CHOICE_SELECTED, wxCommandEventHandler( MediaPlayerDialogBase::OnSourceChanged ), NULL, this );
 	listFiles->Connect( wxEVT_COMMAND_LISTBOX_DOUBLECLICKED, wxCommandEventHandler( MediaPlayerDialogBase::OnFileSelected ), NULL, this );
-	buttonCurrent->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( MediaPlayerDialogBase::OnButtonCurrent ), NULL, this );
-	buttonChild->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( MediaPlayerDialogBase::OnButtonChild ), NULL, this );
-	buttonParent->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( MediaPlayerDialogBase::OnButtonParent ), NULL, this );
-	radioBoxSource->Connect( wxEVT_COMMAND_RADIOBOX_SELECTED, wxCommandEventHandler( MediaPlayerDialogBase::OnSourceChanged ), NULL, this );
-	checkShuffle->Connect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( MediaPlayerDialogBase::OnCheckShuffle ), NULL, this );
-	checkRepeat->Connect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( MediaPlayerDialogBase::OnCheckRepeat ), NULL, this );
+	listFiles->Connect( wxEVT_RIGHT_UP, wxMouseEventHandler( MediaPlayerDialogBase::OnRightClick ), NULL, this );
 	sliderZone0Volume->Connect( wxEVT_SLIDER, wxCommandEventHandler( MediaPlayerDialogBase::OnZone0VolumeChanged ), NULL, this );
 	sliderZone1Volume->Connect( wxEVT_SLIDER, wxCommandEventHandler( MediaPlayerDialogBase::OnZone1VolumeChanged ), NULL, this );
 	sliderBalance->Connect( wxEVT_SLIDER, wxCommandEventHandler( MediaPlayerDialogBase::OnBalanceChanged ), NULL, this );
@@ -211,13 +179,9 @@ MediaPlayerDialogBase::~MediaPlayerDialogBase()
 {
 	// Disconnect Events
 	this->Disconnect( wxEVT_INIT_DIALOG, wxInitDialogEventHandler( MediaPlayerDialogBase::OnInit ) );
+	choiceSource->Disconnect( wxEVT_COMMAND_CHOICE_SELECTED, wxCommandEventHandler( MediaPlayerDialogBase::OnSourceChanged ), NULL, this );
 	listFiles->Disconnect( wxEVT_COMMAND_LISTBOX_DOUBLECLICKED, wxCommandEventHandler( MediaPlayerDialogBase::OnFileSelected ), NULL, this );
-	buttonCurrent->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( MediaPlayerDialogBase::OnButtonCurrent ), NULL, this );
-	buttonChild->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( MediaPlayerDialogBase::OnButtonChild ), NULL, this );
-	buttonParent->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( MediaPlayerDialogBase::OnButtonParent ), NULL, this );
-	radioBoxSource->Disconnect( wxEVT_COMMAND_RADIOBOX_SELECTED, wxCommandEventHandler( MediaPlayerDialogBase::OnSourceChanged ), NULL, this );
-	checkShuffle->Disconnect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( MediaPlayerDialogBase::OnCheckShuffle ), NULL, this );
-	checkRepeat->Disconnect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( MediaPlayerDialogBase::OnCheckRepeat ), NULL, this );
+	listFiles->Disconnect( wxEVT_RIGHT_UP, wxMouseEventHandler( MediaPlayerDialogBase::OnRightClick ), NULL, this );
 	sliderZone0Volume->Disconnect( wxEVT_SLIDER, wxCommandEventHandler( MediaPlayerDialogBase::OnZone0VolumeChanged ), NULL, this );
 	sliderZone1Volume->Disconnect( wxEVT_SLIDER, wxCommandEventHandler( MediaPlayerDialogBase::OnZone1VolumeChanged ), NULL, this );
 	sliderBalance->Disconnect( wxEVT_SLIDER, wxCommandEventHandler( MediaPlayerDialogBase::OnBalanceChanged ), NULL, this );
@@ -229,5 +193,86 @@ MediaPlayerDialogBase::~MediaPlayerDialogBase()
 	buttonForward->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( MediaPlayerDialogBase::OnButtonForward ), NULL, this );
 	buttonMute->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( MediaPlayerDialogBase::OnButtonMute ), NULL, this );
 	buttonPower->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( MediaPlayerDialogBase::OnButtonPower ), NULL, this );
+
+}
+
+MediaPlayerSettingsBase::MediaPlayerSettingsBase( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxDialog( parent, id, title, pos, size, style )
+{
+	this->SetSizeHints( wxDefaultSize, wxDefaultSize );
+
+	wxBoxSizer* sizerDialog;
+	sizerDialog = new wxBoxSizer( wxVERTICAL );
+
+	wxBoxSizer* sizerExplorer;
+	sizerExplorer = new wxBoxSizer( wxHORIZONTAL );
+
+	wxBoxSizer* sizerNavigation;
+	sizerNavigation = new wxBoxSizer( wxVERTICAL );
+
+	searchOptions = new wxSearchCtrl( this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
+	#ifndef __WXMAC__
+	searchOptions->ShowSearchButton( true );
+	#endif
+	searchOptions->ShowCancelButton( false );
+	sizerNavigation->Add( searchOptions, 0, wxALL|wxEXPAND, 5 );
+
+	treeOptions = new wxTreeCtrl( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTR_DEFAULT_STYLE|wxTR_HIDE_ROOT );
+	sizerNavigation->Add( treeOptions, 1, wxALL|wxEXPAND, 5 );
+
+
+	sizerExplorer->Add( sizerNavigation, 1, wxEXPAND, 5 );
+
+	wxBoxSizer* sizerScroll;
+	sizerScroll = new wxBoxSizer( wxVERTICAL );
+
+	scrollWindow = new wxScrolledWindow( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxHSCROLL|wxVSCROLL );
+	scrollWindow->SetScrollRate( 5, 5 );
+	sizerFlex = new wxFlexGridSizer( 0, 1, 0, 0 );
+	sizerFlex->SetFlexibleDirection( wxVERTICAL );
+	sizerFlex->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
+
+
+	scrollWindow->SetSizer( sizerFlex );
+	scrollWindow->Layout();
+	sizerFlex->Fit( scrollWindow );
+	sizerScroll->Add( scrollWindow, 1, wxEXPAND | wxALL, 5 );
+
+
+	sizerExplorer->Add( sizerScroll, 2, wxEXPAND, 5 );
+
+
+	sizerDialog->Add( sizerExplorer, 1, wxEXPAND, 5 );
+
+	sizerButtons = new wxStdDialogButtonSizer();
+	sizerButtonsOK = new wxButton( this, wxID_OK );
+	sizerButtons->AddButton( sizerButtonsOK );
+	sizerButtonsCancel = new wxButton( this, wxID_CANCEL );
+	sizerButtons->AddButton( sizerButtonsCancel );
+	sizerButtons->Realize();
+
+	sizerDialog->Add( sizerButtons, 0, wxALIGN_RIGHT|wxALL, 5 );
+
+
+	this->SetSizer( sizerDialog );
+	this->Layout();
+
+	this->Centre( wxBOTH );
+
+	// Connect Events
+	searchOptions->Connect( wxEVT_COMMAND_SEARCHCTRL_SEARCH_BTN, wxCommandEventHandler( MediaPlayerSettingsBase::OnSearch ), NULL, this );
+	treeOptions->Connect( wxEVT_COMMAND_TREE_SEL_CHANGED, wxTreeEventHandler( MediaPlayerSettingsBase::OnTreeSelected ), NULL, this );
+	treeOptions->Connect( wxEVT_COMMAND_TREE_SEL_CHANGING, wxTreeEventHandler( MediaPlayerSettingsBase::OnTreeChanging ), NULL, this );
+	sizerButtonsCancel->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( MediaPlayerSettingsBase::OnCancel ), NULL, this );
+	sizerButtonsOK->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( MediaPlayerSettingsBase::OnOk ), NULL, this );
+}
+
+MediaPlayerSettingsBase::~MediaPlayerSettingsBase()
+{
+	// Disconnect Events
+	searchOptions->Disconnect( wxEVT_COMMAND_SEARCHCTRL_SEARCH_BTN, wxCommandEventHandler( MediaPlayerSettingsBase::OnSearch ), NULL, this );
+	treeOptions->Disconnect( wxEVT_COMMAND_TREE_SEL_CHANGED, wxTreeEventHandler( MediaPlayerSettingsBase::OnTreeSelected ), NULL, this );
+	treeOptions->Disconnect( wxEVT_COMMAND_TREE_SEL_CHANGING, wxTreeEventHandler( MediaPlayerSettingsBase::OnTreeChanging ), NULL, this );
+	sizerButtonsCancel->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( MediaPlayerSettingsBase::OnCancel ), NULL, this );
+	sizerButtonsOK->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( MediaPlayerSettingsBase::OnOk ), NULL, this );
 
 }
