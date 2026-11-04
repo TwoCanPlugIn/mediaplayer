@@ -13,16 +13,16 @@
 # -------- Options ----------
 
 set(OCPN_TEST_REPO
-    "steven-adler/mediaplayer-alpha"
+    "steven-adler/fusionmedia-beta"
     CACHE STRING "Default repository for untagged builds"
 )
 set(OCPN_BETA_REPO
-    "steven-adler/mediaplayer-beta"
+    "steven-adler/fusionmedia-beta"
     CACHE STRING
     "Default repository for tagged builds matching 'beta'"
 )
 set(OCPN_RELEASE_REPO
-    "steven-adler/mediaplayer-prod"
+    "steven-adler/fusionmedia-prod"
     CACHE STRING
     "Default repository for tagged builds not matching 'beta'"
 )
