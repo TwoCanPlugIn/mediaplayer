@@ -88,6 +88,8 @@ extern const int MEDIAPLAYER_JOB_INCREMENT_COUNTER;
 
 struct FUSION_MEDIA_PLAYER {
 	wxString deviceName;
+	wxString playerVersion;
+	wxString linkVersion;
 	wxString zoneOneName;
 	int zoneOneVolumeLimit;
 	int zoneTwoVolumeLimit;
@@ -205,6 +207,8 @@ protected:
 private: 
 	wxStaticText* labelDeviceName;
 	wxTextCtrl* textDeviceName;
+	wxStaticText* labelPlayerVersion;
+	wxStaticText* labelLinkVersion;
 	
 	void OnDeviceNameChanged(wxCommandEvent& event);
 	

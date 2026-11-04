@@ -337,7 +337,7 @@ void MediaPlayerPlugin::HandleN2K_130820(ObservedEvt ev) {
 		return;
 	}
 
-	// BUG BUG Perhaps these are an unsigned short (2 bytes) instead of two bytes ?
+	// BUG BUG Perhaps these are an unsigned short (2 bytes) instead of two individual bytes ?
 	unsigned char messageId;
 	messageId = payload[2];
 
@@ -359,20 +359,24 @@ void MediaPlayerPlugin::HandleN2K_130820(ObservedEvt ev) {
 	case 1: { 
 		// Software Version
 		// A3 99 01 80 01 00 19 00 02 00 C0 0D
-		// BUG BUG Should display this somewhere
-		int mediaControllerMajorVersion = payload[4];
-		int mediaControllerMinorVersion = payload[5];
-		int mediaControllerPatchVersion = payload[6] | (payload[7] << 8);
+		int playerMajorVersion = payload[4];
+		int playerMinorVersion = payload[5];
+		int playerPatchVersion = payload[6] | (payload[7] << 8);
 
-		int fusionLinkMajorVersion = payload[8];
-		int fusionLinkMinorVersion = payload[9];
-		int fusionLinkPatchVersion = payload[10] | (payload[11] << 8);
+		int linkMajorVersion = payload[8];
+		int linkMinorVersion = payload[9];
+		int linkPatchVersion = payload[10] | (payload[11] << 8);
+
+		mediaPlayer.playerVersion = wxString::Format("%d.%d.%d",playerMajorVersion,
+			playerMinorVersion, playerPatchVersion);
+		mediaPlayer.linkVersion = wxString::Format("%d.%d.%d", linkMajorVersion,
+			linkMinorVersion, linkPatchVersion);
 
 		// BUG BUG DEBUG
 		if (debugSpew) {
 			debugMessage = wxString::Format("Id: %d. Ver: %d.%d.%d, Ver: %d.%d.%d",
-				messageId, mediaControllerMajorVersion, mediaControllerMinorVersion, 
-				mediaControllerPatchVersion, fusionLinkMajorVersion, fusionLinkMinorVersion, fusionLinkPatchVersion);
+				messageId, playerMajorVersion, playerMinorVersion, 
+				playerPatchVersion, linkMajorVersion, linkMinorVersion, linkPatchVersion);
 			debugSocket->SendTo(addrPeer, debugMessage, debugMessage.Length());
 		}
 		
@@ -622,9 +626,9 @@ void MediaPlayerPlugin::HandleN2K_130820(ObservedEvt ev) {
 		// A Preset Radio Station has been added
 		// A3 99 14 80 1F 00 00 00 60 98 3D 06
 		
-		// BUG BUG The player does not transmit a message indicating a deleted preset
-		// Need to monitor PGN 126720.
+		// BUG BUG Currently don't update the UI if a preset is deleted by another remote
 		// Use a unordered map, to prevent duplicates and to persist both frequency and index
+		// Assuming 15 (0x0F) presets per band.
 		unsigned int newEntry;
 		newEntry = payload[4] | (payload[5] << 8) | (payload[6] << 16) | (payload[7] << 24);
 		unsigned int newFrequency;
@@ -768,21 +772,6 @@ void MediaPlayerPlugin::HandleN2K_130820(ObservedEvt ev) {
 		break;
 	}
 
-	case 18: { 
-		// Last digit is montonically increasing
-		// A3 99 12 80 6B 0E 00 00 01
-		int something = payload[4] | (payload[5] << 8) | (payload[6] << 16) | (payload[7] << 24);
-
-		// BUG BUG DEBUG
-		if (debugSpew) {
-			debugMessage = wxString::Format("Id: %d Value A: %d, Value B: %d", 
-				messageId, something, payload[8]);
-			debugSocket->SendTo(addrPeer, debugMessage.data(), debugMessage.Length());
-		}
-
-		break;
-	}
-
 	case 19: { 
 		// Auxilliary Media Source Gain
 		// A3 99 13 80 04 00
@@ -798,42 +787,102 @@ void MediaPlayerPlugin::HandleN2K_130820(ObservedEvt ev) {
 
 		break;
 	}
-	case 21: { 
-		// Preset Stations
-		// FM
+
+	case 20: {
+		// Response to Tuner Setting changes. Presets, tuning steps, tuner region and others.
+		// A3 99 14 80 00 00 00 00 03 00 00 00
+
+		int index = payload[4] | (payload[5] << 8) | (payload[6] << 16) | (payload[7] << 24);
+			
+		int value = payload[8] | (payload[9] << 8) | (payload[10] << 16) | (payload[11] << 24);
+
+		if (index == 0x00) {
+			mediaPlayer.tunerSteps = value;
+		}
+		if (index == 0x07) {
+			mediaPlayer.tunerRegion = value;
+		}
+		// AM Preset deleted
+		if (index >= 0x0E && index <= 0x1D) {
+			if (value == 0) {
+				presetAM.erase(index);
+			}
+			// Update the UI
+		}
+		// FM preset deleted
+		else if (index >= 0x1E && index <= 0x2D) {
+			if (value == 0) {
+				presetFM.erase(index);
+			}
+			// Update the UI
+		}
+
+		// BUG BUG DEBUG
+		if (debugSpew) {
+			debugMessage = wxString::Format("Id: %d. Setting: %d Value: %d",
+				messageId, index, value);
+			debugSocket->SendTo(addrPeer, debugMessage, debugMessage.Length());
+		}
+
+		break;
+	}
+
+	case 21: {
+		// Tuner Settings. Presets, tuning steps, tuner region and others.
+		// Hope I've got the ranges right ??
+		// 0x0E - 0x1D = AM
+		// 0x1E - 0x2D = FM
+
 		unsigned int length;
-		std::memcpy(&length, &payload[4], 4);
+		std::memcpy(&length, &payload[4], sizeof(length));
 
 		for (unsigned int i = 0; i < length; i++) {
 			unsigned int index, frequency;
-			std::memcpy(&index, &payload[8 + (i * 8)], 4);
-			std::memcpy(&frequency, &payload[12 + (i * 8)], 4);
+			const unsigned int offset = 8 + (i * 8);
 
-			if ((index < 0x1D) || (index > 0x25)) {
-				continue;
-			}
-			if (frequency == 0) { 
-				lastPresetFM = index; 
-				break; 
-			}
-			presetFM.emplace(index, frequency);
-		}
-		// AM
-		for (unsigned int i = 0; i < length; i++) {
-			unsigned int index, frequency;
-			std::memcpy(&index, &payload[8 + (i * 8)], 4);
-			std::memcpy(&frequency, &payload[12 + (i * 8)], 4);
+			std::memcpy(&index, &payload[offset], sizeof(index));
+			std::memcpy(&frequency, &payload[offset + 4], sizeof(frequency));
 
-			if ((index < 0x0D) || (index > 0x1C )) {
-				continue;
+			// AM presets
+			if (index >= 0x0E && index <= 0x1D) {
+				if (frequency == 0) {
+					lastPresetAM = index;
+				}
+				else {
+					presetAM.emplace(index, frequency);
+				}
 			}
-			if (frequency == 0) {
-				lastPresetAM = index;
-				break;
+			// FM presets
+			else if (index >= 0x1E && index <= 0x2D) {
+				if (frequency == 0) {
+					lastPresetFM = index;
+				}
+				else {
+					presetFM.emplace(index, frequency);
+				}
 			}
-			presetAM.emplace(index, frequency);
+			// Other tuner settings
+			else {
+				switch (index) {
+				case 0x00:
+					mediaPlayer.tunerSteps = frequency;
+					break;
+
+				case 0x07:
+					mediaPlayer.tunerRegion = frequency;
+					break;
+				}
+				// Others TBD
+			}
+
+			// BUG BUG DEBUG
+			if (debugSpew) {
+				debugMessage = wxString::Format(
+					"Id: %d. Setting: %02X, Value: %d",	messageId, index, frequency);
+				debugSocket->SendTo(addrPeer, debugMessage, debugMessage.Length());
+			}
 		}
-		
+
 		break;
 	}
 
@@ -1444,13 +1493,14 @@ void MediaPlayerPlugin::OnDialogEvent(wxCommandEvent& event) {
 
 		// For am & fm radio, the "Play/Pause" button serves double duty and saves 
 		// the currently tuned station to the list of presets
-		// BUG BUG. Is there an upper limit on how many presets can be saved.
+		// BUG BUG. Assuming upper limit of 15 presets given the range of indexes
 		else if ((sessionId == FUSION_MEDIA_PORT::am) || (sessionId == FUSION_MEDIA_PORT::fm)) {
 			
 			if (event.GetString().Lower() == "save") {
 				// Increment the next preset index value and save the frequency
 				unsigned int index;
 				if (sessionId == FUSION_MEDIA_PORT::fm) {
+					// BUG BUG Doesn't accomodate "holes"
 					index = lastPresetFM;
 					lastPresetFM++;
 					presetFM.emplace(index, frequency);
@@ -1764,12 +1814,12 @@ void MediaPlayerPlugin::OnDialogEvent(wxCommandEvent& event) {
 	}
 
 	case MEDIAPLAYER_SET_TUNER_REGION: {
-		// Change the tuner region
+		// Change the tuner region (Note looks like it also deletes the presets)
 		payload.push_back(0xA3);
 		payload.push_back(0x99);
 		payload.push_back(0x0F); // Hmmm Same as Delete Preset ??
 		payload.push_back(0x00);
-		payload.push_back(0x07); // Preset Value = 7
+		payload.push_back(0x07); // Value = 7 for tuner region
 		payload.push_back(0x00);
 		payload.push_back(0x00);
 		payload.push_back(0x00);
@@ -1787,7 +1837,7 @@ void MediaPlayerPlugin::OnDialogEvent(wxCommandEvent& event) {
 		payload.push_back(0x99);
 		payload.push_back(0x0F); // Hmmm Same as Delete Preset ??
 		payload.push_back(0x00);
-		payload.push_back(0x00); // Preset Value = 0
+		payload.push_back(0x00); // Value = 0 for tuner steps
 		payload.push_back(0x00);
 		payload.push_back(0x00);
 		payload.push_back(0x00);

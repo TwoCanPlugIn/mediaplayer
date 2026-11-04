@@ -260,7 +260,8 @@ const std::vector<wxString>& DeviceSettings::SearchTerms() {
 	static const std::vector<wxString> terms = {
 		_("Device Settings"),	// [0] page title
 		_("Name"),				// [1]
-		_("Device")				// [2]
+		_("Device"),			// [2]
+		_("Version")			// [3]
 	};
 	return terms;
 }
@@ -275,6 +276,14 @@ DeviceSettings::DeviceSettings(wxScrolledWindow* parent, wxFlexGridSizer* sizer,
 	sizer->Add(textDeviceName, 0, wxEXPAND, 0);
 	textDeviceName->SetValue(mediaPlayer.deviceName);
 
+	labelPlayerVersion = new wxStaticText(parent, wxID_ANY, _(""), wxDefaultPosition, wxDefaultSize, 0);
+	labelPlayerVersion->Wrap(-1);
+	sizer->Add(labelPlayerVersion, 0, wxEXPAND, 0);
+
+	labelLinkVersion = new wxStaticText(parent, wxID_ANY, _(""), wxDefaultPosition, wxDefaultSize, 0);
+	labelLinkVersion->Wrap(-1);
+	sizer->Add(labelLinkVersion, 0, wxEXPAND, 0);
+
 	// Connect the event handler
 	textDeviceName->Connect(wxEVT_TEXT, wxCommandEventHandler(DeviceSettings::OnDeviceNameChanged), NULL, this);
 
@@ -282,6 +291,12 @@ DeviceSettings::DeviceSettings(wxScrolledWindow* parent, wxFlexGridSizer* sizer,
 	const std::vector<wxString>& t = SearchTerms();
 	Register(t[1], labelDeviceName, textDeviceName);
 	Register(t[2], labelDeviceName, textDeviceName);
+	Register(t[3], labelPlayerVersion, labelLinkVersion);
+
+	// Initialize the labels
+	labelPlayerVersion->SetLabel("Player Version: " + mediaPlayer.playerVersion);
+	labelLinkVersion->SetLabel("Link Version: " + mediaPlayer.linkVersion);
+
 }
 
 DeviceSettings::~DeviceSettings() {
@@ -307,7 +322,7 @@ const std::vector<wxString>& AllZoneSettings::SearchTerms() {
 
 AllZoneSettings::AllZoneSettings(wxScrolledWindow* parent, wxFlexGridSizer* sizer, wxString name, EventSubmitter submitter) : SettingsTemplate(parent, sizer, name, submitter) {
 
-	checkLink = new wxCheckBox(parent, wxID_ANY, "Link to zone", wxDefaultPosition, wxDefaultSize);
+	checkLink = new wxCheckBox(parent, wxID_ANY, "Link all zones (not implemented)", wxDefaultPosition, wxDefaultSize);
 	sizer->Add(checkLink, 0, wxEXPAND, 0);
 
 	// Connect the event handlers
@@ -323,9 +338,7 @@ AllZoneSettings::~AllZoneSettings() {
 }
 
 void AllZoneSettings::OnLinkChanged(wxCommandEvent& event) {
-	auto commandEvent = std::make_unique<wxCommandEvent>(wxEVT_MEDIAPLAYER_DIALOG_EVENT, MEDIAPLAYER_JOB_APPEND_TEXT);
-	commandEvent->SetInt(checkLink->GetValue());
-	SubmitEvent(std::move(commandEvent));
+	// Not yet implemented
 }
 
 const std::vector<wxString>& ZoneSettings::SearchTerms() {
