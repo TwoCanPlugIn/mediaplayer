@@ -39,7 +39,7 @@
 extern FUSION_MEDIA_PLAYER mediaPlayer;
 
 // Id's associated with searching
-enum PageId { PAGE_DEVICE, PAGE_ZONES, PAGE_TUNER, PAGE_ZONE0, PAGE_ZONE1, PAGE_ZONE2 };
+enum PageId { PAGE_ABOUT, PAGE_DEVICE, PAGE_ZONES, PAGE_TUNER, PAGE_ZONE0, PAGE_ZONE1, PAGE_ZONE2 };
 
 // Attached to each tree item so a selection can be mapped back to a page,
 // (tree item IDs change every time the tree is rebuilt by a search)
@@ -68,13 +68,12 @@ public:
 
 protected:
 	// Overridden methods from the base class
-	void OnInit(wxInitDialogEvent& event);
-	void OnOk(wxCommandEvent& event);
-	void OnCancel(wxCommandEvent& event);
-	void OnTreeSelected(wxTreeEvent& event);
-	void OnTreeChanging(wxTreeEvent& event);
-	void OnSearch(wxCommandEvent& event);
-	void OnChar(wxKeyEvent& event);
+	void OnInit(wxInitDialogEvent& event) override;
+	void OnOk(wxCommandEvent& event) override;
+	void OnCancel(wxCommandEvent& event) override;
+	void OnTreeSelected(wxTreeEvent& event) override;
+	void OnTreeChanging(wxTreeEvent& event) override;
+	void OnSearch(wxCommandEvent& event) override;
 
 private:
 	

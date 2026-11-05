@@ -33,7 +33,7 @@ PageId enum,
 GetSettingsIndex() - > the index builder
 BuildTree (the match, show and select logic), 
 LoadPage. 
-If you expect many pages, a small table would replace most of that. 
+Consider a small table to replace most of above. 
 Each row would hold the page ID, its title, its parent, a factory function and a 
 SearchTerms() function. BuildTree could then loop over the table, 
 and parent-only handling would come from the parent field rather than the 
@@ -48,6 +48,7 @@ Keep the title at [0] and don’t reorder the list without checking the Register c
 The _() strings in SearchTerms() are translated, 
 so users searching in their own language match the translated text. 
 */
+
 // BUG BUG Enhancement
 /*
 // in the header
@@ -93,7 +94,7 @@ const std::vector<PageDescriptor>& GetPages() {
 	return pages;
 }
 
-// This is the only "template" you need: a tiny factory function
+// Consider a "template" requires a tiny factory function
 template <typename T>
 SettingsTemplate* Make(wxScrolledWindow* p, wxFlexGridSizer* s, const wxString& n) {
 	return new T(p, s, n);
@@ -144,6 +145,9 @@ namespace {
 	const std::vector<SettingEntry>& GetSettingsIndex() {
 		static std::vector<SettingEntry> index;
 		if (index.empty()) {
+			for (const wxString& s : About::SearchTerms()) {
+				index.push_back({ PAGE_ABOUT, s });
+			}
 			for (const wxString& s : DeviceSettings::SearchTerms()) {
 				index.push_back({ PAGE_DEVICE, s });
 			}
@@ -211,10 +215,6 @@ void MediaPlayerOptions::OnOk(wxCommandEvent& event) {
 void MediaPlayerOptions::OnCancel(wxCommandEvent& event) {
 	ClearPage();
 	EndModal(wxID_CANCEL);
-}
-
-void MediaPlayerOptions::OnChar(wxKeyEvent& event) {
-	wxMessageBox(wxString::Format("Key Code: %d", event.GetKeyCode()));
 }
 
 // Search button clicked, the filter is already applied live as the user types,
@@ -294,17 +294,20 @@ void MediaPlayerOptions::BuildTree(const wxString& filter) {
 	const bool matchZone0 = PageMatches(PAGE_ZONE0, filter);
 	const bool matchZone1 = PageMatches(PAGE_ZONE1, filter);
 	const bool matchZone2 = PageMatches(PAGE_ZONE2, filter);
+	const bool matchAbout = PageMatches(PAGE_ABOUT, filter);
 
 	// Which tree items to show. 
 	// zone0, 1 and 2 are children of match Zones
 	const bool showZones = matchZones || matchZone0 || matchZone1 || matchZone2;
 	const bool showDevice = matchDevice; 
 	const bool showTuner = matchTuner;
+	const bool showAbout = matchAbout;
 
 	// Same pages matching as last time. Leave the tree alone and just re-apply the filter.
 	// (rebuildingTree is deliberately not touched on this path.)
 	const int mask = (matchDevice ? 1 : 0) | (matchTuner ? 2 : 0) | (matchZones ? 4 : 0) |
-		(matchZone0 ? 8 : 0) | (matchZone1 ? 16 : 0) | (matchZone2 ? 32 : 0);
+		(matchZone0 ? 8 : 0) | (matchZone1 ? 16 : 0) | (matchZone2 ? 32 : 0) | (matchAbout ? 64 : 0);
+
 	if (mask == visibleMask && settingsTemplate) {
 		settingsTemplate->ApplyFilter(filter);
 		return;
@@ -319,7 +322,7 @@ void MediaPlayerOptions::BuildTree(const wxString& filter) {
 	treeOptions->DeleteAllItems();
 
 	wxTreeItemId rootItem = treeOptions->AddRoot("Dummy");
-	wxTreeItemId deviceItem, zoneItem, tunerItem, zone0Item, zone1Item, zone2Item;
+	wxTreeItemId aboutItem, deviceItem, zoneItem, tunerItem, zone0Item, zone1Item, zone2Item;
 
 	if (showDevice) {
 		deviceItem = treeOptions->AppendItem(rootItem, DeviceSettings::SearchTerms()[0], -1, -1, new PageData(PAGE_DEVICE));
@@ -335,6 +338,9 @@ void MediaPlayerOptions::BuildTree(const wxString& filter) {
 	if (showTuner) {
 		tunerItem = treeOptions->AppendItem(rootItem, TunerSettings::SearchTerms()[0], -1, -1, new PageData(PAGE_TUNER));
 	}
+	if (showAbout) {
+		aboutItem = treeOptions->AppendItem(rootItem, About::SearchTerms()[0], -1, -1, new PageData(PAGE_ABOUT));
+	}
 
 	treeOptions->Thaw();
 
@@ -342,6 +348,7 @@ void MediaPlayerOptions::BuildTree(const wxString& filter) {
 	// A parent that is only shown to hold a matching child is not.
 	// Stay on the current page if it matches; otherwise take the first match in tree order.
 	const bool currentMatches =
+		(currentPage == PAGE_ABOUT && matchAbout) ||
 		(currentPage == PAGE_DEVICE && matchDevice) ||
 		(currentPage == PAGE_TUNER && matchTuner) ||
 		(currentPage == PAGE_ZONES && matchZones) ||
@@ -351,28 +358,44 @@ void MediaPlayerOptions::BuildTree(const wxString& filter) {
 
 	PageId pick = currentPage;
 	if (!currentMatches) {
-		if (!currentMatches) {
-			if (matchDevice)      pick = PAGE_DEVICE;
-			else if (matchZones)  pick = PAGE_ZONES;
-			else if (matchZone0)  pick = PAGE_ZONE0;
-			else if (matchZone1)  pick = PAGE_ZONE1;
-			else if (matchZone2)  pick = PAGE_ZONE2;
-			else                  pick = PAGE_TUNER;
+		if (matchAbout) {
+			pick = PAGE_ABOUT;
+		}
+		else if (matchDevice) {
+			pick = PAGE_DEVICE;
+		}
+		else if (matchZones) {
+			pick = PAGE_ZONES;
+		}
+		else if (matchZone0) {
+			pick = PAGE_ZONE0;
+		}
+		else if (matchZone1) {
+			pick = PAGE_ZONE1;
+		}
+		else if (matchZone2) {
+			pick = PAGE_ZONE2;
+		}
+		else if (matchTuner) {
+			pick = PAGE_TUNER;
 		}
 	}
 
 	// If nothing matched at all, none of the items exist and target stays invalid
 	wxTreeItemId target;
 	switch (pick) {
+	case PAGE_ABOUT:
+		target = aboutItem;
+		break;
 	case PAGE_DEVICE:
 		target = deviceItem; 
-	break;
+		break;
 	case PAGE_TUNER: 
 		target = tunerItem; 
-	break;
+		break;
 	case PAGE_ZONES:
 		target = zoneItem;
-	break;
+		break;
 	case PAGE_ZONE0:
 		target = zone0Item;
 		break;
@@ -425,28 +448,25 @@ void MediaPlayerOptions::LoadPage(PageId page) {
 	currentPage = page;
 
 	switch (page) {
+	case PAGE_ABOUT:
+		settingsTemplate = std::make_unique<About>(scrollWindow, sizerFlex, "About", GetEventSubmitter());
+		break;
 	case PAGE_ZONES:
-		//settingsTemplate = new AllZoneSettings(scrollWindow, sizerFlex, "Zones");
 		settingsTemplate = std::make_unique<AllZoneSettings>(scrollWindow, sizerFlex, "Zones", GetEventSubmitter());
 		break;
 	case PAGE_ZONE0:
-		//settingsTemplate = new ZoneSettings(scrollWindow, sizerFlex, GetZoneName(0));
 		settingsTemplate = std::make_unique<ZoneSettings>(scrollWindow, sizerFlex, "0", GetEventSubmitter());
 		break;
 	case PAGE_ZONE1:
-		//settingsTemplate = new ZoneSettings(scrollWindow, sizerFlex, GetZoneName(1));
 		settingsTemplate = std::make_unique<ZoneSettings>(scrollWindow, sizerFlex, "1", GetEventSubmitter());
 		break;
 	case PAGE_ZONE2:
-		//settingsTemplate = new ZoneSettings(scrollWindow, sizerFlex, GetZoneName(2));
 		settingsTemplate = std::make_unique<ZoneSettings>(scrollWindow, sizerFlex, "2", GetEventSubmitter());
 		break;
 	case PAGE_TUNER:
-		//settingsTemplate = new TunerSettings(scrollWindow, sizerFlex, "Tuner");
 		settingsTemplate = std::make_unique<TunerSettings>(scrollWindow, sizerFlex, "Tuner", GetEventSubmitter());
 		break;
 	case PAGE_DEVICE:
-		//settingsTemplate = new DeviceSettings(scrollWindow, sizerFlex, "Device");
 		settingsTemplate = std::make_unique<DeviceSettings>(scrollWindow, sizerFlex, "Device", GetEventSubmitter());
 		break;
 	}

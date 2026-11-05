@@ -827,14 +827,14 @@ void MediaPlayerPlugin::HandleN2K_130820(ObservedEvt ev) {
 			mediaPlayer.tunerRegion = value;
 		}
 		// AM Preset deleted
-		if (index >= 0x0E && index <= 0x1D) {
+		if (index >= 0x0E && index <= 0x1C) {
 			if (value == 0) {
 				presetAM.erase(index);
 			}
 			// Update the UI
 		}
 		// FM preset deleted
-		else if (index >= 0x1E && index <= 0x2D) {
+		else if (index >= 0x1D && index <= 0x2C) {
 			if (value == 0) {
 				presetFM.erase(index);
 			}
@@ -854,8 +854,8 @@ void MediaPlayerPlugin::HandleN2K_130820(ObservedEvt ev) {
 	case 21: {
 		// Tuner Settings. Presets, tuning steps, tuner region and others.
 		// Hope I've got the ranges right ??
-		// 0x0E - 0x1D = AM
-		// 0x1E - 0x2D = FM
+		// 0x0E - 0x1C = AM
+		// 0x1D - 0x2C = FM
 
 		unsigned int length;
 		std::memcpy(&length, &payload[4], sizeof(length));
@@ -868,7 +868,7 @@ void MediaPlayerPlugin::HandleN2K_130820(ObservedEvt ev) {
 			std::memcpy(&frequency, &payload[offset + 4], sizeof(frequency));
 
 			// AM presets
-			if (index >= 0x0E && index <= 0x1D) {
+			if (index >= 0x0E && index <= 0x1C) {
 				if (frequency == 0) {
 					lastPresetAM = index;
 				}
@@ -877,7 +877,7 @@ void MediaPlayerPlugin::HandleN2K_130820(ObservedEvt ev) {
 				}
 			}
 			// FM presets
-			else if (index >= 0x1E && index <= 0x2D) {
+			else if (index >= 0x1D && index <= 0x2C) {
 				if (frequency == 0) {
 					lastPresetFM = index;
 				}
@@ -1526,7 +1526,9 @@ void MediaPlayerPlugin::OnDialogEvent(wxCommandEvent& event) {
 				if (sessionId == FUSION_MEDIA_PORT::fm) {
 					// BUG BUG Doesn't accomodate "holes"
 					index = lastPresetFM;
-					lastPresetFM++;
+					if (lastPresetFM < 0x2D) {
+						lastPresetFM++;
+					}
 					presetFM.emplace(index, frequency);
 					// Update the UI
 					mediaPlayerDialog->ClearFileList();
@@ -1536,7 +1538,9 @@ void MediaPlayerPlugin::OnDialogEvent(wxCommandEvent& event) {
 				}
 				else if (sessionId == FUSION_MEDIA_PORT::am) {
 					index = lastPresetAM;
-					lastPresetAM++;
+					if (lastPresetAM < 0x1D) {
+						lastPresetAM++;
+					}
 					presetAM.emplace(index, frequency);
 					mediaPlayerDialog->ClearFileList();
 					for (auto it : presetAM) {

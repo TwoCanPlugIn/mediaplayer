@@ -186,6 +186,30 @@ private:
 	void OnAMChanged(wxCommandEvent& event);
 };
 
+// The ubiquitous about dialog!
+class  About : public SettingsTemplate {
+
+public:
+	// The constructor
+	About(wxScrolledWindow* parent, wxFlexGridSizer* sizer, wxString name, EventSubmitter submitter);
+
+	// and destructor
+	~About(void);
+
+	static const std::vector<wxString>& SearchTerms();
+
+	using SettingsTemplate::SettingsTemplate;
+
+protected:
+
+
+private:
+	wxStaticText* labelPluginName;
+	wxStaticText* labelPluginVersion;
+	wxStaticText* labelPluginAuthor;
+
+};
+
 
 // A panel displaying the device's top level settings
 class  DeviceSettings : public SettingsTemplate {

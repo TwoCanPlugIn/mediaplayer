@@ -142,6 +142,41 @@ void SettingsTemplate::SubmitEvent(std::unique_ptr<wxEvent> event) {
 	eventSubmitter(std::move(event));
 }
 
+// The about dialog
+const std::vector<wxString>& About::SearchTerms() {
+	static const std::vector<wxString> terms = {
+		_("About"),				// [0] page title
+		_("About"),				// [1]
+		_("Author"),			// [2]
+		_("Version")			// [3]
+	};
+	return terms;
+}
+
+About::About(wxScrolledWindow* parent, wxFlexGridSizer* sizer, wxString name, EventSubmitter submitter) : SettingsTemplate(parent, sizer, name, submitter) {
+
+	labelPluginName = new wxStaticText(parent, wxID_ANY, "Fusion Media Player plugin", wxDefaultPosition, wxDefaultSize, 0);
+	labelPluginName->Wrap(-1);
+	sizer->Add(labelPluginName, 0, wxEXPAND, 0);
+
+	labelPluginVersion = new wxStaticText(parent, wxID_ANY, _("Version 2.0.1"), wxDefaultPosition, wxDefaultSize, 0);
+	labelPluginVersion->Wrap(-1);
+	sizer->Add(labelPluginVersion, 0, wxEXPAND, 0);
+
+	labelPluginAuthor = new wxStaticText(parent, wxID_ANY, _("Author: twocanplugin@hotmail.com"), wxDefaultPosition, wxDefaultSize, 0);
+	labelPluginAuthor->Wrap(-1);
+	sizer->Add(labelPluginAuthor, 0, wxEXPAND, 0);
+
+	// Associate controls with the search terms
+	const std::vector<wxString>& t = SearchTerms();
+	Register(t[1], labelPluginName);
+	Register(t[2], labelPluginVersion);
+	Register(t[3], labelPluginAuthor);
+}
+
+About::~About() {
+}
+
 // Tuner Settings
 // Allow the user to select the region, tuning steps and clear stored preset stations
 
