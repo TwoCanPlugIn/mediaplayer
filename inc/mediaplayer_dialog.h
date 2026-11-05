@@ -24,6 +24,43 @@
 // For context menu
 #include <wx/menu.h>
 
+// For OpenCPN colour scheme
+#include <ocpn_plugin.h>
+
+// Apply my colours to support Day/Dusk/Night mode
+struct MediaPlayerTheme {
+
+	wxColour background;
+	wxColour panelBackground;
+	wxColour foreground;
+	wxColour buttonBackground;
+	wxColour buttonForeground;
+	wxColour border;
+	wxColour highlight;
+
+	static MediaPlayerTheme GetTheme(PI_ColorScheme mode) {
+		MediaPlayerTheme theme;
+		if (mode == PI_GLOBAL_COLOR_SCHEME_DAY) {
+			theme.background = wxColour(240, 240, 240); // V Light Grey
+			theme.panelBackground = wxColour(255, 255, 255); // White
+			theme.foreground = wxColour(0, 0, 0); // Black
+			theme.buttonBackground = wxColour(225, 225, 225); // Light Grey
+			theme.buttonForeground = wxColour(0, 0, 0);
+			theme.border = wxColour(160, 160, 160); //  Grey
+			theme.highlight = wxColour(0, 120, 215); // Blue
+		}
+		else { // Use the same theme for dusk & night
+			theme.background = wxColour(20, 20, 20); // v. DARK GREY
+			theme.panelBackground = wxColour(25, 25, 25);
+			theme.foreground = wxColour(255, 50, 50); // Red
+			theme.buttonBackground = wxColour(45, 45, 45); // Grey
+			theme.buttonForeground = wxColour(255, 50, 50); // Red
+			theme.border = wxColour(150, 30, 30); // Dark red
+			theme.highlight = wxColour(255, 0, 0); // Red
+		}
+		return theme;
+	}
+};
 
 // Was thinking of using relative paths for navigation
 //#if (defined (__APPLE__) && defined (__MACH__))
@@ -144,7 +181,11 @@ class MediaPlayerDialog : public MediaPlayerDialogBase
 		void RequestRootFolder(void);
 		void RequestChildFolder(int folderId);
 		void RequestParentFolder(int folderId);
-
+		// Day/Dusk/Night colour schemes
+		void SetColourScheme(PI_ColorScheme cs);
+		void ApplyColourScheme(wxWindow *windows, MediaPlayerTheme them);
+		void ApplyDimeColourScheme(wxWindow* window);
+		
 	private:
 		wxEvtHandler *eventHandler;
 		

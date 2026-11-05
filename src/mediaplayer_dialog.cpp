@@ -33,6 +33,8 @@
 #include "mediaplayer_dialog.h"
 
 // Media File/Folder Client Metadata used for folders & music tracks from media devices
+// Note to self, type indicates folder, track, id is the Fusion folder/track id and level
+// is the depth in the folder heirarchy
 MediaFileItem::MediaFileItem(const int id, const MEDIA_FILE_TYPE type, const int level) {
 	itemType = type;
 	itemId = id;
@@ -57,13 +59,95 @@ int MediaFileItem::GetLevel() {
 // The plugin dialog, inherits from a base class developed using wxFormBuilder
 MediaPlayerDialog::MediaPlayerDialog( wxWindow* parent, wxEvtHandler *handler) : MediaPlayerDialogBase(parent) {
 	eventHandler = handler;
-	SetMinSize(wxSize(500,500));
+	SetMinSize(wxSize(550,650));
 	Fit();
 	Layout();
 
+	// Found a bug with colours on Linux (GTK), but solved by using a colour scheme
+	#if defined (__LINUX__)
+	// Apply background colour after creating children
+	wxColour bgColour =	wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW);
+
+	SetBackgroundColour(bgColour);
+
+	for (wxWindow* child : GetChildren()) 	{
+		if (wxDynamicCast(child, wxPanel))	{
+			child->SetBackgroundColour(bgColour);
+			child->Refresh();
+		}
 	}
 
+	#endif
+}
+
 MediaPlayerDialog::~MediaPlayerDialog(void) {
+}
+
+// Unused, OpenCPN DimeWindow API is unsuitable
+void MediaPlayerDialog::ApplyDimeColourScheme(wxWindow* window) {
+	if (!window) {
+		return;
+	}
+
+	DimeWindow(window);
+
+	for (wxWindow* child : window->GetChildren()) {
+		DimeWindow(child);
+	}
+}
+
+// Apply my custom day/dusk/night colours to the dialog
+void MediaPlayerDialog::ApplyColourScheme(wxWindow *window, MediaPlayerTheme theme) {
+
+	if (!window) {
+		return;
+	}
+
+	// Apply to panel, dialog, labels, text controls etc.
+	window->SetBackgroundColour(theme.background);
+	window->SetForegroundColour(theme.foreground);
+
+	// Explicitly set for some controls
+	// Although some things are natively rendered, we can't change the colours
+	if (auto* button = wxDynamicCast(window, wxButton))	{
+		button->SetBackgroundColour(theme.buttonBackground);
+		button->SetForegroundColour(theme.buttonForeground);
+	}
+	
+	else if (auto* list = wxDynamicCast(window, wxListBox)) {
+		list->SetBackgroundColour(theme.panelBackground);
+		list->SetForegroundColour(theme.foreground);
+	}
+
+	else if (auto* gauge = wxDynamicCast(window, wxGauge)) {
+		gauge->SetBackgroundColour(theme.panelBackground);
+		gauge->SetForegroundColour(theme.highlight);
+	}
+
+	else if (auto* choice = wxDynamicCast(window, wxChoice)) {
+		choice->SetBackgroundColour(theme.panelBackground);
+		choice->SetForegroundColour(theme.foreground);
+	}
+
+	else if (auto* slider = wxDynamicCast(window, wxSlider)) {
+		slider->SetBackgroundColour(theme.background);
+		slider->SetForegroundColour(theme.highlight);
+	}
+
+	window->Refresh();
+
+	// Apply recursively to child windows
+	for (wxWindow* child : window->GetChildren()) {
+		ApplyColourScheme(child, theme);
+	}
+}
+
+void MediaPlayerDialog::SetColourScheme(PI_ColorScheme cs) {
+	MediaPlayerTheme theme = MediaPlayerTheme::GetTheme(cs);
+	ApplyColourScheme(this, theme);
+	// BUG BUG Could use OpenCPN DimeWindow API.
+	// but it doesn't seem to change the text or other elements
+	// ApplyDimeColourScheme(this);
 }
 
 // Event Handlers
@@ -412,8 +496,8 @@ void MediaPlayerDialog::SetRootFolder(const wxString &folderName) {
 	listFiles->Append(folderName, new MediaFileItem(0, MEDIA_FILE_TYPE::MTPFOLDER, 0));
 }
 
+// Called when we receive an item of type PHYSICAL_FOLDER or VIRTUAL_FOLDER
 void MediaPlayerDialog::AppendFolder(const wxString &folderName, const MEDIA_FILE_TYPE folderType, const int folderId) {
-	// Called when we receive an item of type PHYSICAL_FOLDER or VIRTUAL_FOLDER
 	// Use the dummy root, to get the current folder heirarchy level
 	int itemNumber = listFiles->FindString("..");
 	MediaFileItem *selectedItemData = NULL;
@@ -425,8 +509,8 @@ void MediaPlayerDialog::AppendFolder(const wxString &folderName, const MEDIA_FIL
 	}
 }
 
+// Called when we receive an item of type MUSIC_TRACK
 void MediaPlayerDialog::AppendFile(const wxString &itemName, const int itemId) {
-	// Called when we receive an item of type MUSIC_TRACK
 	// Use the dummy root, to get the current folder heirarchy
 	int itemNumber = listFiles->FindString("..");
 	MediaFileItem *selectedItemData = NULL;

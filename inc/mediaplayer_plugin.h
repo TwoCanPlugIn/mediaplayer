@@ -185,6 +185,7 @@ public:
 	void UpdateAuiStatus(void) override;
 	void LateInit(void) override;
 	void ShowPreferencesDialog(wxWindow *parent) override;
+	void SetColorScheme(PI_ColorScheme cs) override;
 
 	// Event Handler for events received from the Media Player dialog
 	void OnDialogEvent(wxCommandEvent &event);

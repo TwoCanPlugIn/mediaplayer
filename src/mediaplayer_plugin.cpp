@@ -298,6 +298,23 @@ void MediaPlayerPlugin::OnPaneClose(wxAuiManagerEvent& event) {
 	}
 }
 
+// Support Day/Dusk/Night modes
+void MediaPlayerPlugin::SetColorScheme(PI_ColorScheme cs) {
+	mediaPlayerDialog->SetColourScheme(cs);
+
+	// Could update AUI, but it seems to have no effect ?
+	/*
+	AppTheme theme = AppTheme::GetTheme(cs);
+	wxAuiDockArt* art = auiManager->GetArtProvider();
+	art->SetColour(wxAUI_DOCKART_BACKGROUND_COLOUR, theme.background);
+	art->SetColour(wxAUI_DOCKART_ACTIVE_CAPTION_COLOUR, theme.background);
+	art->SetColour(wxAUI_DOCKART_ACTIVE_CAPTION_TEXT_COLOUR,theme.foreground);
+	art->SetColour(wxAUI_DOCKART_INACTIVE_CAPTION_COLOUR,theme.background);
+	art->SetColour(wxAUI_DOCKART_INACTIVE_CAPTION_TEXT_COLOUR,theme.foreground);
+	auiManager->Update();
+	*/
+}
+
 // Helper function to find required driver handles
 std::string MediaPlayerPlugin::FindOutboundConnection(const std::string& connectionType) {
 	// Iterate through all of the OpenCPN connections
@@ -568,9 +585,17 @@ void MediaPlayerPlugin::HandleN2K_130820(ObservedEvt ev) {
 	case 9: { 
 		// Elapsed time
 		// A3 99 09 80 05 53 CC 02 00
-
-		int elapsedTime = 1e-3 * (payload[5] | (payload[6] << 8) | (payload[7] << 16) | (payload[8] << 24));
-		mediaPlayerDialog->SetGaugeValue(elapsedTime);
+		int elapsedTime;
+		elapsedTime = payload[5] | (payload[6] << 8) | (payload[7] << 16) | (payload[8] << 24);
+		
+		if (payload[4] == FUSION_MEDIA_PORT::bt) {
+			mediaPlayerDialog->SetGaugeValue(0);
+			mediaPlayerDialog->SetStatus("Now playing from Bluetooth");
+		}
+		else {
+			elapsedTime *= 1e-3;
+			mediaPlayerDialog->SetGaugeValue(elapsedTime);
+		}
 
 		// BUG BUG DEBUG
 		if (debugSpew) {
@@ -591,7 +616,7 @@ void MediaPlayerPlugin::HandleN2K_130820(ObservedEvt ev) {
 		
 		frequency = (payload[6] | (payload[7] << 8) | (payload[8] << 16) | (payload[9] << 24)); // * (sessionId == FUSION_MEDIA_PORT::am ? 1e-3 : 1e-6);
 
-		// payload 10 unknown, perhaps signal quality
+		// payload 10 perhaps signal quality
 
 		radioStationName.Clear();
 		for (size_t i = 0; i < payload[11]; i++) {
@@ -664,7 +689,7 @@ void MediaPlayerPlugin::HandleN2K_130820(ObservedEvt ev) {
 		// A3 99 0F 80 05 00 00 00 00 02 06
 
 		// Ensure it is us controlling the media player
-		// BUG BUG Why do I care about the session Id ??
+		// BUG BUG Remind myself why do I care about the session Id ??
 		if ((sessionId == payload[4]) && (headUnitId == payload[10])) {
 			folderId = payload[5] | (payload[6] << 8) | (payload[7] << 16) | (payload[8] << 24);
 			
@@ -767,7 +792,6 @@ void MediaPlayerPlugin::HandleN2K_130820(ObservedEvt ev) {
 					messageId, folderId, folderType, folderName);
 				debugSocket->SendTo(addrPeer, debugMessage.data(), debugMessage.Length());
 			}
-
 		}
 		break;
 	}
